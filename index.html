@@ -13,10 +13,6 @@
       name="apple-mobile-web-app-status-bar-style"
       content="black-translucent"
     />
-    <meta
-      name="description"
-      content="Kumbu - organiza o teu orçamento mensal e poupança"
-    />
     <title>Kumbu - Conta Certa</title>
     <link rel="manifest" href="manifest.json" />
     <link rel="apple-touch-icon" href="icons/icon-192.png" />
@@ -27,82 +23,55 @@
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <!-- ===== ECRÃ DE LOGIN ===== -->
     <section id="tela-login" class="tela ativa">
       <div class="login-box">
         <div class="logo"><i class="bi bi-cash-coin"></i> KUMBU</div>
         <p class="sub">Conta Certa • Organiza o teu kumbu</p>
-
         <label for="email"><i class="bi bi-envelope"></i> Email</label>
-        <input
-          type="email"
-          id="email"
-          placeholder="ex: julio@gmail.com"
-          autocomplete="email"
-        />
-
+        <input type="email" id="email" placeholder="ex: julio@gmail.com" />
         <label for="senha"><i class="bi bi-lock"></i> Senha</label>
-        <input
-          type="password"
-          id="senha"
-          placeholder="Mínimo 6 caracteres"
-          autocomplete="current-password"
-        />
-
+        <input type="password" id="senha" placeholder="Mínimo 6 caracteres" />
         <label for="nome-user"
           ><i class="bi bi-person"></i> Nome (só para criar conta)</label
         >
         <input type="text" id="nome-user" placeholder="Ex: Júlio Manassés" />
-
         <button id="btn-entrar" class="btn-principal" onclick="entrar()">
           <i class="bi bi-box-arrow-in-right"></i> Entrar
         </button>
         <button id="btn-criar" class="btn-sec" onclick="criarConta()">
           <i class="bi bi-person-plus"></i> Criar Conta Grátis
         </button>
-
         <p id="msg-login" class="msg"></p>
-        <p class="dica">
-          <i class="bi bi-shield-lock"></i> Os teus dados ficam guardados na
-          nuvem em segurança.
-        </p>
       </div>
     </section>
 
-    <!-- ===== APP PRINCIPAL ===== -->
     <div id="app-principal" style="display: none">
       <header>
         <div class="logo"><i class="bi bi-cash-coin"></i> KUMBU</div>
         <div class="header-info">
           <span id="nome-logado">—</span>
-          <span
-            id="sync-status"
-            class="sync-status"
-            title="Estado da sincronização"
-          >
-            <i class="bi bi-cloud-check"></i>
-          </span>
+          <span id="sync-status" class="sync-status"
+            ><i class="bi bi-cloud-check"></i
+          ></span>
           <button class="btn-sair" onclick="sair()" aria-label="Sair">
             <i class="bi bi-box-arrow-right"></i> Sair
           </button>
         </div>
       </header>
 
-      <!-- SELETOR DE MÊS -->
       <div class="mes-selector">
-        <button onclick="mudarMes(-1)" aria-label="Mês anterior">
+        <button onclick="mudarMes(-1)">
           <i class="bi bi-chevron-left"></i>
         </button>
         <div>
           <span id="mes-label">—</span>
           <small id="mes-status">—</small>
         </div>
-        <button onclick="mudarMes(1)" aria-label="Mês seguinte">
+        <button onclick="mudarMes(1)">
           <i class="bi bi-chevron-right"></i>
         </button>
       </div>
 
-      <!-- TELA 1: INÍCIO -->
       <section id="tela-inicio" class="tela ativa">
         <div class="card-salario">
           <label><i class="bi bi-wallet2"></i> Teu Salário</label>
@@ -128,32 +97,28 @@
 
         <div class="cards-resumo">
           <div class="mini-card">
-            <small><i class="bi bi-arrow-down-circle"></i> Gasto</small>
-            <b id="totalGasto">0 Kz</b>
+            <small><i class="bi bi-arrow-down-circle"></i> Gasto</small
+            ><b id="totalGasto">0 Kz</b>
           </div>
           <div class="mini-card verde">
-            <small><i class="bi bi-wallet"></i> Saldo</small>
-            <b id="saldo">0 Kz</b>
+            <small><i class="bi bi-wallet"></i> Saldo</small
+            ><b id="saldo">0 Kz</b>
           </div>
           <div class="mini-card laranja">
-            <small><i class="bi bi-piggy-bank"></i> Poupança</small>
-            <b id="poupanca">0 Kz</b>
+            <small><i class="bi bi-piggy-bank"></i> Poupança</small
+            ><b id="poupanca">0 Kz</b>
           </div>
         </div>
-
         <div class="barra-progresso">
           <div id="barra" style="width: 0%"></div>
         </div>
         <p id="alerta" class="alerta"></p>
-
         <h3><i class="bi bi-receipt"></i> Últimos Gastos</h3>
         <div id="lista-gastos"></div>
       </section>
 
-      <!-- TELA 2: ADICIONAR -->
       <section id="tela-add" class="tela">
         <h2><i class="bi bi-plus-circle"></i> Novo Gasto</h2>
-
         <label>Categoria</label>
         <div class="chips" id="chips-categoria">
           <button onclick="escolherCat('Igreja', this)" class="chip ativo">
@@ -175,10 +140,8 @@
             <i class="bi bi-box-seam"></i> Outros
           </button>
         </div>
-
         <label>Nome do gasto</label>
         <input type="text" id="nome" placeholder="Ex: Alimentação" />
-
         <label>Valor (Kz)</label>
         <input
           type="number"
@@ -186,30 +149,36 @@
           placeholder="Ex: 50000"
           inputmode="numeric"
         />
-
         <button class="btn-principal" onclick="adicionarGasto()">
           <i class="bi bi-check-circle"></i> Salvar Gasto
         </button>
-        <p class="dica">Dica: Dízimo, Oferta, Arrendamento, Luz, Água...</p>
       </section>
 
-      <!-- TELA 3: GRÁFICO -->
       <section id="tela-grafico" class="tela">
-        <h2><i class="bi bi-bar-chart-line"></i> Onde foi o teu Kumbu?</h2>
+        <h2><i class="bi bi-bar-chart-line"></i> Relatório Global</h2>
+
+        <!-- NOVOS CARDS GLOBAIS -->
+        <div class="cards-resumo">
+          <div class="mini-card verde">
+            <small><i class="bi bi-piggy-bank"></i> Poupança Total</small>
+            <b id="global-poupanca">0 Kz</b>
+          </div>
+          <div class="mini-card" style="border-color: var(--vermelho)">
+            <small><i class="bi bi-graph-up-arrow"></i> Gastos Totais</small>
+            <b id="global-gastos">0 Kz</b>
+          </div>
+        </div>
+
         <div id="grafico"></div>
         <div id="resumo-cat"></div>
 
         <div class="cards-pdf">
           <button class="btn-principal" onclick="exportarPDF()">
-            <i class="bi bi-file-earmark-pdf"></i> Guardar PDF
-          </button>
-          <button class="btn-sec" onclick="partilharResumo()">
-            <i class="bi bi-share"></i> Partilhar
+            <i class="bi bi-file-earmark-pdf"></i> PDF do Mês
           </button>
         </div>
       </section>
 
-      <!-- TELA 4: DEFINIÇÕES -->
       <section id="tela-def" class="tela">
         <h2><i class="bi bi-gear"></i> Definições</h2>
 
@@ -218,48 +187,42 @@
             <i class="bi bi-cloud-arrow-up"></i> <b>Sincronização:</b>
             <span id="sync-info">—</span>
           </p>
-          <button class="btn-sec" onclick="forcarSincronizacao()">
-            <i class="bi bi-arrow-repeat"></i> Sincronizar agora
-          </button>
         </div>
 
+        <h3>Gestão de Conta</h3>
+        <button class="btn-sec" onclick="alterarSenha()">
+          <i class="bi bi-key"></i> Alterar Senha
+        </button>
+        <button class="btn-sec" onclick="exportarJSON()">
+          <i class="bi bi-download"></i> Exportar Backup (JSON)
+        </button>
+
+        <h3>Zona de Perigo</h3>
         <button class="btn-perigo" onclick="limparTudo()">
           <i class="bi bi-trash"></i> Limpar gastos deste mês
         </button>
+        <button
+          class="btn-perigo"
+          onclick="eliminarConta()"
+          style="background: #991b1b; margin-top: 8px"
+        >
+          <i class="bi bi-exclamation-triangle"></i> Eliminar Minha Conta
+        </button>
 
-        <div class="info-box">
-          <p>
-            <i class="bi bi-cloud-check"></i> <b>Online:</b> os dados guardam-se
-            na tua conta.
-          </p>
-          <p>
-            <i class="bi bi-wifi-off"></i> <b>Offline:</b> os dados ficam no
-            telefone e sincronizam depois.
-          </p>
-          <p>
-            <i class="bi bi-calendar3"></i> Cada mês tem os seus próprios
-            gastos.
-          </p>
-          <p><i class="bi bi-info-circle"></i> Versão PWA 5.1</p>
-        </div>
+        <p class="dica" style="margin-top: 24px">Kumbu PWA Versão 1.0.0</p>
       </section>
 
-      <!-- MENU INFERIOR -->
       <nav class="menu">
-        <button
-          onclick="mostrar('tela-inicio', this)"
-          class="ativo"
-          aria-label="Início"
-        >
+        <button onclick="mostrar('tela-inicio', this)" class="ativo">
           <i class="bi bi-house-door-fill"></i><span>Início</span>
         </button>
-        <button onclick="mostrar('tela-add', this)" aria-label="Adicionar">
+        <button onclick="mostrar('tela-add', this)">
           <i class="bi bi-plus-circle-fill"></i><span>Adicionar</span>
         </button>
-        <button onclick="mostrar('tela-grafico', this)" aria-label="Relatório">
+        <button onclick="mostrar('tela-grafico', this)">
           <i class="bi bi-bar-chart-fill"></i><span>Relatório</span>
         </button>
-        <button onclick="mostrar('tela-def', this)" aria-label="Definições">
+        <button onclick="mostrar('tela-def', this)">
           <i class="bi bi-gear-fill"></i><span>Definições</span>
         </button>
       </nav>
