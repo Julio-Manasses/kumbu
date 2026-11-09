@@ -1,4 +1,4 @@
-// ===== KUMBU - APP.JS v5 (Cloud + Offline Sync) =====
+// ===== KUMBU - APP.JS v5.1 =====
 
 let supabase = null;
 let SUPABASE_OK = false;
@@ -17,7 +17,7 @@ try {
 // ===== ESTADO =====
 let categoriaAtual = "Igreja";
 let mesAtual = new Date();
-let dados = {}; // Cache local: { "2026-11": { salario, gastos[], agregado } }
+let dados = {};
 let userId = null;
 let syncing = false;
 
@@ -240,7 +240,7 @@ async function processarFila() {
           await supabase.from("gastos").insert({
             user_id: op.user_id,
             orcamento_id: orcId,
-            categoria_id: 1, // Como não temos o ID da categoria na fila, usamos o default "1"
+            categoria_id: 1,
             nome: op.gasto.nome,
             valor: op.gasto.valor,
           });
@@ -263,8 +263,6 @@ async function processarFila() {
         if (!navigator.onLine) break;
       }
     }
-
-    // Depois de processar a fila, recarrega os dados para garantir que o que está no ecrã corresponde à BD
     await recarregarDoServidor();
   } catch (e) {
     console.error("Erro ao processar fila:", e);
@@ -276,7 +274,6 @@ async function processarFila() {
 
 async function garantirOrcamento(uid, chave) {
   const [ano, mes] = chave.split("-").map(Number);
-
   let { data: orc } = await supabase
     .from("orcamentos")
     .select("id")
@@ -303,19 +300,29 @@ async function garantirOrcamento(uid, chave) {
 async function criarConta() {
   if (!SUPABASE_OK)
     return mostrarMsg("Sem internet — não é possível criar conta.");
+
+  const btn = document.getElementById("btn-criar");
+  const txtOriginal = btn.innerHTML;
+  btn.innerHTML = `<i class="bi bi-arrow-repeat" style="animation: spin 1s linear infinite; display:inline-block;"></i> A criar...`;
+  btn.disabled = true;
+
   const email = document.getElementById("email").value.trim();
   const senha = document.getElementById("senha").value;
   const nome = document.getElementById("nome-user").value.trim();
 
-  if (!email || !senha || senha.length < 6)
-    return mostrarMsg("Escreve email e senha com 6+ caracteres");
+  if (!email || !senha || senha.length < 6) {
+    mostrarMsg("Escreve email e senha com 6+ caracteres");
+    btn.innerHTML = txtOriginal;
+    btn.disabled = false;
+    return;
+  }
 
   try {
     const { data, error } = await supabase.auth.signUp({
       email,
       password: senha,
     });
-    if (error) return mostrarMsg("Erro: " + error.message);
+    if (error) throw error;
 
     if (data.user) {
       await supabase.from("perfis").insert({
@@ -324,35 +331,55 @@ async function criarConta() {
         telefone: "",
       });
     }
-    mostrarMsg("Conta criada! Clica em Entrar.");
+    mostrarMsg("Conta criada com sucesso! Já podes clicar em Entrar.");
+    document.getElementById("msg-login").style.color = "var(--verde)";
   } catch (e) {
-    mostrarMsg("Erro ao ligar ao servidor.");
+    mostrarMsg("Erro: " + e.message);
+    document.getElementById("msg-login").style.color = "var(--vermelho)";
+  } finally {
+    btn.innerHTML = txtOriginal;
+    btn.disabled = false;
   }
 }
 
 async function entrar() {
   if (!SUPABASE_OK)
     return mostrarMsg("Sem internet — não é possível entrar agora.");
+
+  const btn = document.getElementById("btn-entrar");
+  const txtOriginal = btn.innerHTML;
+  btn.innerHTML = `<i class="bi bi-arrow-repeat" style="animation: spin 1s linear infinite; display:inline-block;"></i> A entrar...`;
+  btn.disabled = true;
+
   const email = document.getElementById("email").value.trim();
   const senha = document.getElementById("senha").value;
-  if (!email || !senha) return mostrarMsg("Escreve email e senha");
+  if (!email || !senha) {
+    mostrarMsg("Escreve email e senha");
+    btn.innerHTML = txtOriginal;
+    btn.disabled = false;
+    return;
+  }
 
   try {
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password: senha,
     });
-    if (error) return mostrarMsg("Email ou senha errada");
+    if (error) throw error;
 
     userId = data.user.id;
     mostrarMsg("A entrar...");
+    document.getElementById("msg-login").style.color = "var(--verde)";
 
-    // Ao entrar, o app liga-se à BD, puxa os dados e processa o que estiver offline
     await recarregarDoServidor();
     abrirApp(data.user);
     setTimeout(processarFila, 500);
   } catch (e) {
-    mostrarMsg("Sem internet — tenta novamente mais tarde.");
+    mostrarMsg("Email ou senha errada. (Verifica se confirmaste o email).");
+    document.getElementById("msg-login").style.color = "var(--vermelho)";
+  } finally {
+    btn.innerHTML = txtOriginal;
+    btn.disabled = false;
   }
 }
 
@@ -360,7 +387,6 @@ async function sair() {
   try {
     if (supabase) await supabase.auth.signOut();
   } catch (_) {}
-  // Mantemos o cache local (dados) mas o utilizador precisa de fazer login de novo
   location.reload();
 }
 
@@ -392,8 +418,6 @@ async function recarregarDoServidor() {
 
     for (const orc of orcs) {
       const chave = `${orc.ano}-${String(orc.mes).padStart(2, "0")}`;
-
-      // Se já tivermos dados locais deste mês, só preenchemos se o local estiver vazio
       if (!dados[chave]) {
         dados[chave] = {
           salario: orc.salario || 0,
@@ -411,18 +435,16 @@ async function recarregarDoServidor() {
         .order("created_at", { ascending: true });
 
       if (gastosDb) {
-        // Substitui os gastos pelo que está na base de dados (a BD é a fonte da verdade)
         dados[chave].gastos = gastosDb.map((g) => ({
           id: g.id,
           nome: g.nome,
           valor: Number(g.valor),
-          cat: "Outros", // Categoria genérica (podes melhorar isto depois guardando o categoria_id)
+          cat: "Outros",
         }));
       }
     }
-
     guardarLocal();
-    atualizar(); // Atualiza o ecrã com os dados frescos
+    atualizar();
   } catch (e) {
     console.warn("Falha ao puxar do servidor (offline?):", e);
   }
@@ -432,8 +454,7 @@ async function recarregarDoServidor() {
 // ===== ARRANQUE DO APP =====
 // ============================================================
 (async () => {
-  lerLocal(); // Carrega o que estava no telefone (para ver algo instantâneo)
-
+  lerLocal();
   if (SUPABASE_OK) {
     try {
       const { data } = await supabase.auth.getSession();
@@ -446,8 +467,6 @@ async function recarregarDoServidor() {
       }
     } catch (_) {}
   }
-
-  // Se não estiver logado, mostra a tela de login
   atualizarSyncStatus();
 })();
 
@@ -493,14 +512,10 @@ async function adicionarGasto() {
   const d = dadosDoMes();
   const gasto = { nome, valor, cat: categoriaAtual, _pendente: true };
 
-  // Atualiza no ecrã imediatamente
   d.gastos.push(gasto);
   guardarLocal();
 
-  // Se tem conta, enfileira para enviar para o Supabase
-  if (userId) {
-    await enfileirarGasto(gasto, chave);
-  }
+  if (userId) await enfileirarGasto(gasto, chave);
 
   document.getElementById("nome").value = "";
   document.getElementById("valor").value = "";
@@ -514,7 +529,6 @@ async function remover(i) {
   const d = dadosDoMes();
   const gasto = d.gastos[i];
 
-  // Se o gasto tem ID, apaga no servidor
   if (userId && gasto.id) {
     if (navigator.onLine) {
       try {
@@ -568,18 +582,15 @@ function atualizar() {
     .reduce((s, g) => s + Number(g.valor), 0);
   const saldo = salario - total;
 
-  // Datas
   document.getElementById("mes-label").innerText = nomeMes(mesAtual);
   const k = chaveMes(mesAtual);
   const hoje = chaveMes(new Date());
   document.getElementById("mes-status").innerText =
     k === hoje ? "Mês atual" : k < hoje ? "Mês passado" : "Mês futuro";
 
-  // Inputs
   document.getElementById("salario").value = salario;
   document.getElementById("agregado").value = d.agregado || "1 pessoa";
 
-  // Cards
   document.getElementById("totalGasto").innerText =
     total.toLocaleString("pt-PT") + " Kz";
   document.getElementById("saldo").innerText =
@@ -587,7 +598,6 @@ function atualizar() {
   document.getElementById("poupanca").innerText =
     poupanca.toLocaleString("pt-PT") + " Kz";
 
-  // Barra
   const barra = document.getElementById("barra");
   if (barra) {
     barra.style.width =
@@ -598,7 +608,6 @@ function atualizar() {
         : "linear-gradient(90deg,#D4AF37,#F4D03F)";
   }
 
-  // Alerta
   const alerta = document.getElementById("alerta");
   if (saldo < 0) {
     alerta.className = "alerta erro";
@@ -608,7 +617,6 @@ function atualizar() {
     alerta.innerHTML = `<i class="bi bi-check-circle-fill"></i> Ainda tens ${saldo.toLocaleString("pt-PT")} Kz este mês.`;
   }
 
-  // Lista de Gastos
   const lista = document.getElementById("lista-gastos");
   lista.innerHTML =
     d.gastos
@@ -632,8 +640,7 @@ function atualizar() {
               <i class="bi bi-trash"></i>
             </button>
           </div>
-        </div>
-      `;
+        </div>`;
       })
       .join("") || "<p class='dica'>Nenhum gasto registado neste mês.</p>";
 }
