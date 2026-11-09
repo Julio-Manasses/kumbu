@@ -1,4 +1,4 @@
-const CACHE = "kumbu-v5";
+const CACHE = "kumbu-v6";
 const FILES = [
   "./",
   "./index.html",
@@ -31,7 +31,6 @@ self.addEventListener("activate", (e) => {
   );
 });
 
-// ===== FETCH =====
 self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
 
@@ -39,7 +38,6 @@ self.addEventListener("fetch", (e) => {
   const isCDN =
     url.hostname.includes("jsdelivr") || url.hostname.includes("supabase");
 
-  // CDN → network-first com fallback cache
   if (isCDN) {
     e.respondWith(
       fetch(e.request)
@@ -56,7 +54,6 @@ self.addEventListener("fetch", (e) => {
     return;
   }
 
-  // Local → cache-first
   e.respondWith(
     caches.match(e.request).then((cached) => {
       if (cached) return cached;
@@ -77,9 +74,6 @@ self.addEventListener("fetch", (e) => {
   );
 });
 
-// ===== BACKGROUND SYNC =====
-// Quando o browser detetar rede, dispara este evento.
-// A app é que processa (aqui só avisamos os clientes).
 self.addEventListener("sync", (event) => {
   if (event.tag === "kumbu-sync") {
     event.waitUntil(
@@ -90,7 +84,6 @@ self.addEventListener("sync", (event) => {
   }
 });
 
-// Escuta mensagens dos clientes
 self.addEventListener("message", (e) => {
   if (e.data?.type === "SKIP_WAITING") self.skipWaiting();
 });

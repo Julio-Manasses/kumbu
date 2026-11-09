@@ -59,13 +59,11 @@
         <button class="btn-sec" onclick="criarConta()">
           <i class="bi bi-person-plus"></i> Criar Conta Grátis
         </button>
-        <button class="btn-link" onclick="entrarSemConta()">
-          <i class="bi bi-wifi-off"></i> Usar offline (sem conta)
-        </button>
 
         <p id="msg-login" class="msg"></p>
         <p class="dica">
-          <i class="bi bi-shield-lock"></i> Os teus dados ficam privados.
+          <i class="bi bi-shield-lock"></i> Os teus dados ficam guardados na
+          nuvem em segurança.
         </p>
       </div>
     </section>
@@ -113,7 +111,7 @@
               id="salario"
               value=""
               inputmode="numeric"
-              placeholder="10000"
+              placeholder="0"
             />
             <span>Kz</span>
           </div>
@@ -227,42 +225,21 @@
         <button class="btn-perigo" onclick="limparTudo()">
           <i class="bi bi-trash"></i> Limpar gastos deste mês
         </button>
-        <button class="btn-sec" onclick="carregarExemplo()">
-          <i class="bi bi-arrow-clockwise"></i> Carregar exemplo (172.000 Kz)
-        </button>
-
-        <h3><i class="bi bi-cloud-download"></i> Backup manual</h3>
-        <button class="btn-sec" onclick="exportarJSON()">
-          <i class="bi bi-download"></i> Exportar dados (JSON)
-        </button>
-        <button
-          class="btn-sec"
-          onclick="document.getElementById('import-file').click()"
-        >
-          <i class="bi bi-upload"></i> Importar dados (JSON)
-        </button>
-        <input
-          type="file"
-          id="import-file"
-          accept="application/json"
-          style="display: none"
-          onchange="importarJSON(event)"
-        />
 
         <div class="info-box">
           <p>
-            <i class="bi bi-wifi-off"></i> <b>Offline:</b> os dados ficam no
-            telefone.
+            <i class="bi bi-cloud-check"></i> <b>Online:</b> os dados guardam-se
+            na tua conta.
           </p>
           <p>
-            <i class="bi bi-cloud-check"></i> <b>Online:</b> sincronizam
-            sozinhos.
+            <i class="bi bi-wifi-off"></i> <b>Offline:</b> os dados ficam no
+            telefone e sincronizam depois.
           </p>
           <p>
             <i class="bi bi-calendar3"></i> Cada mês tem os seus próprios
             gastos.
           </p>
-          <p><i class="bi bi-info-circle"></i> Versão PWA 4.0</p>
+          <p><i class="bi bi-info-circle"></i> Versão PWA 5.0</p>
         </div>
       </section>
 

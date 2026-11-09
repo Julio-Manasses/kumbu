@@ -1,5 +1,4 @@
-// ===== KUMBU - APP.JS v4 (com sync) =====
-// Import dinâmico + try/catch: mesmo SEM internet o resto corre.
+// ===== KUMBU - APP.JS v5 (Cloud + Offline Sync) =====
 
 let supabase = null;
 let SUPABASE_OK = false;
@@ -7,8 +6,8 @@ let SUPABASE_OK = false;
 try {
   const { createClient } =
     await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm");
-  const SUPABASE_URL = "https://TEU-PROJETO.supabase.co";
-  const SUPABASE_KEY = "COLA-AQUI-A-TUA-CHAVE-ANON-PUBLIC";
+  const SUPABASE_URL = "https://lcfcurptohrpzxdaotwf.supabase.co";
+  const SUPABASE_KEY = "sb_publishable_og0DiPnnVHgMn0TyhwDGvQ_WdnZ442E";
   supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
   SUPABASE_OK = true;
 } catch (e) {
@@ -17,30 +16,12 @@ try {
 
 // ===== ESTADO =====
 let categoriaAtual = "Igreja";
-let modoTeste = false;
 let mesAtual = new Date();
-let dados = {}; // { "2026-11": { salario, gastos[], poupancaMeta, agregado } }
+let dados = {}; // Cache local: { "2026-11": { salario, gastos[], agregado } }
 let userId = null;
 let syncing = false;
 
-const LS_DADOS = "kumbu_dados_v4";
-const LS_MODO = "kumbu_modo";
-
-const gastosExemplo = [
-  { nome: "Dízimo", valor: 15800, cat: "Igreja" },
-  { nome: "Poupança", valor: 15800, cat: "Poupança" },
-  { nome: "Arrendamento", valor: 25000, cat: "Casa" },
-  { nome: "Alimentação", valor: 50000, cat: "Comida" },
-  { nome: "Luz", valor: 10000, cat: "Casa" },
-  { nome: "Água", valor: 20000, cat: "Casa" },
-  { nome: "TV", valor: 9500, cat: "Casa" },
-  { nome: "Gás", valor: 3000, cat: "Casa" },
-  { nome: "Internet", valor: 6000, cat: "Casa" },
-  { nome: "Oferta para o culto", valor: 3600, cat: "Igreja" },
-  { nome: "Água purificada", valor: 3000, cat: "Casa" },
-  { nome: "Produtos de higiene", valor: 5000, cat: "Casa" },
-  { nome: "Farelo para galinha", valor: 5500, cat: "Outros" },
-];
+const LS_DADOS = "kumbu_dados_v5";
 
 const iconesCat = {
   Igreja: "bi-bank",
@@ -52,7 +33,7 @@ const iconesCat = {
 };
 
 // ============================================================
-// ===== INDEXEDDB — fila de operações pendentes =====
+// ===== INDEXEDDB — Fila para sincronização offline =====
 // ============================================================
 const DB_NAME = "kumbu_sync";
 const DB_STORE = "fila";
@@ -140,22 +121,17 @@ function nomeMes(date) {
 function dadosDoMes() {
   const k = chaveMes(mesAtual);
   if (!dados[k]) {
-    dados[k] = {
-      salario: 0,
-      gastos: [],
-      poupancaMeta: 0,
-      agregado: "1 pessoa",
-    };
+    dados[k] = { salario: 0, gastos: [], agregado: "1 pessoa" };
   }
   return dados[k];
 }
 
-// ===== PERSISTÊNCIA =====
+// ===== PERSISTÊNCIA LOCAL =====
 function guardarLocal() {
   try {
     localStorage.setItem(LS_DADOS, JSON.stringify(dados));
   } catch (e) {
-    console.warn("Falha ao guardar:", e);
+    console.warn("Falha ao guardar cache:", e);
   }
 }
 
@@ -164,7 +140,7 @@ function lerLocal() {
     const raw = localStorage.getItem(LS_DADOS);
     if (raw) dados = JSON.parse(raw) || {};
   } catch (e) {
-    console.warn("Dados corrompidos, a reiniciar:", e);
+    console.warn("Cache corrompida, a reiniciar:", e);
     dados = {};
   }
 }
@@ -205,15 +181,15 @@ async function atualizarSyncStatus() {
       info.innerText = `Offline${pendentes ? ` — ${pendentes} pendentes` : ""}`;
     else if (pendentes > 0)
       info.innerText = `${pendentes} operações por enviar`;
-    else info.innerText = "Tudo sincronizado";
+    else info.innerText = "Tudo sincronizado com a nuvem";
   }
 }
 
 // ============================================================
-// ===== FILA — operações offline =====
+// ===== FILA DE OPERAÇÕES =====
 // ============================================================
 async function enfileirarGasto(gasto, chave) {
-  if (!userId) return; // só faz sentido se houver conta online
+  if (!userId) return;
   await enfileirar({ tipo: "add_gasto", user_id: userId, chave, gasto });
   await atualizarSyncStatus();
   tentarSincronizar();
@@ -240,21 +216,15 @@ async function enfileirarLimpeza(chave) {
   tentarSincronizar();
 }
 
+async function tentarSincronizar() {
+  if (navigator.onLine && userId && !syncing) processarFila();
+}
+
 // ============================================================
 // ===== PROCESSAMENTO DA FILA =====
 // ============================================================
 async function processarFila() {
-  if (!SUPABASE_OK || !navigator.onLine || syncing) return;
-  if (!userId) {
-    // Tenta obter sessão
-    try {
-      const { data } = await supabase.auth.getSession();
-      if (data.session) userId = data.session.user.id;
-      else return;
-    } catch {
-      return;
-    }
-  }
+  if (!SUPABASE_OK || !navigator.onLine || syncing || !userId) return;
 
   syncing = true;
   await atualizarSyncStatus();
@@ -264,14 +234,13 @@ async function processarFila() {
 
     for (const op of fila) {
       try {
-        // Garante que existe orçamento para o mês
         const orcId = await garantirOrcamento(op.user_id, op.chave);
 
         if (op.tipo === "add_gasto") {
           await supabase.from("gastos").insert({
             user_id: op.user_id,
             orcamento_id: orcId,
-            categoria_id: 1,
+            categoria_id: 1, // Como não temos o ID da categoria na fila, usamos o default "1"
             nome: op.gasto.nome,
             valor: op.gasto.valor,
           });
@@ -281,7 +250,6 @@ async function processarFila() {
             .update({ salario: op.salario })
             .eq("id", orcId);
         } else if (op.tipo === "set_agregado") {
-          // Coluna opcional — se não existir na BD, ignora o erro
           await supabase
             .from("orcamentos")
             .update({ agregado: op.agregado })
@@ -292,10 +260,14 @@ async function processarFila() {
         await removerDaFila(op.id);
       } catch (e) {
         console.warn("Operação falhou (fica na fila):", op.tipo, e);
-        // Se falhou por rede, para o loop para não insistir
         if (!navigator.onLine) break;
       }
     }
+
+    // Depois de processar a fila, recarrega os dados para garantir que o que está no ecrã corresponde à BD
+    await recarregarDoServidor();
+  } catch (e) {
+    console.error("Erro ao processar fila:", e);
   } finally {
     syncing = false;
     await atualizarSyncStatus();
@@ -326,13 +298,15 @@ async function garantirOrcamento(uid, chave) {
 }
 
 // ============================================================
-// ===== AUTH =====
+// ===== AUTH (LOGIN / CONTA) =====
 // ============================================================
 async function criarConta() {
-  if (!SUPABASE_OK) return mostrarMsg("Sem internet — usa o modo offline.");
+  if (!SUPABASE_OK)
+    return mostrarMsg("Sem internet — não é possível criar conta.");
   const email = document.getElementById("email").value.trim();
   const senha = document.getElementById("senha").value;
   const nome = document.getElementById("nome-user").value.trim();
+
   if (!email || !senha || senha.length < 6)
     return mostrarMsg("Escreve email e senha com 6+ caracteres");
 
@@ -342,6 +316,7 @@ async function criarConta() {
       password: senha,
     });
     if (error) return mostrarMsg("Erro: " + error.message);
+
     if (data.user) {
       await supabase.from("perfis").insert({
         id: data.user.id,
@@ -349,14 +324,15 @@ async function criarConta() {
         telefone: "",
       });
     }
-    mostrarMsg("Conta criada! Agora clica em Entrar");
+    mostrarMsg("Conta criada! Clica em Entrar.");
   } catch (e) {
-    mostrarMsg("Sem internet — usa o modo offline.");
+    mostrarMsg("Erro ao ligar ao servidor.");
   }
 }
 
 async function entrar() {
-  if (!SUPABASE_OK) return mostrarMsg("Sem internet — usa o modo offline.");
+  if (!SUPABASE_OK)
+    return mostrarMsg("Sem internet — não é possível entrar agora.");
   const email = document.getElementById("email").value.trim();
   const senha = document.getElementById("senha").value;
   if (!email || !senha) return mostrarMsg("Escreve email e senha");
@@ -368,16 +344,15 @@ async function entrar() {
     });
     if (error) return mostrarMsg("Email ou senha errada");
 
-    modoTeste = false;
     userId = data.user.id;
-    localStorage.removeItem(LS_MODO);
+    mostrarMsg("A entrar...");
 
-    // Login → carrega do servidor mas faz merge com local
-    await mergeComServidor();
+    // Ao entrar, o app liga-se à BD, puxa os dados e processa o que estiver offline
+    await recarregarDoServidor();
     abrirApp(data.user);
     setTimeout(processarFila, 500);
   } catch (e) {
-    mostrarMsg("Sem internet — usa o modo offline.");
+    mostrarMsg("Sem internet — tenta novamente mais tarde.");
   }
 }
 
@@ -385,45 +360,15 @@ async function sair() {
   try {
     if (supabase) await supabase.auth.signOut();
   } catch (_) {}
-  localStorage.removeItem(LS_MODO);
-  // Mantém dados locais; fila fica para quando voltar
+  // Mantemos o cache local (dados) mas o utilizador precisa de fazer login de novo
   location.reload();
 }
 
-function entrarSemConta() {
-  modoTeste = true;
-  localStorage.setItem(LS_MODO, "offline");
-  lerLocal();
-
-  if (Object.keys(dados).length === 0) {
-    dados[chaveMes(new Date())] = {
-      salario: 172000,
-      gastos: [...gastosExemplo],
-      poupancaMeta: 15800,
-      agregado: "4 pessoas",
-    };
-    guardarLocal();
-  }
-
-  mesAtual = new Date();
-  abrirApp({ email: "Modo Offline" });
-  document.getElementById("nome-logado").innerText = "Modo Offline";
-  atualizar();
-  atualizarSyncStatus();
-}
-
 function abrirApp(user) {
-  const telaLogin = document.getElementById("tela-login");
-  if (telaLogin) telaLogin.style.display = "none";
+  document.getElementById("tela-login").style.display = "none";
   document.getElementById("app-principal").style.display = "block";
   document.getElementById("nome-logado").innerText = user.email;
-
-  if (modoTeste) {
-    atualizar();
-  } else {
-    // já fizemos merge antes; só atualiza UI
-    atualizar();
-  }
+  atualizar();
 }
 
 function mostrarMsg(txt) {
@@ -432,9 +377,9 @@ function mostrarMsg(txt) {
 }
 
 // ============================================================
-// ===== MERGE ONLINE ↔ LOCAL =====
+// ===== PUXAR DADOS DO SERVIDOR =====
 // ============================================================
-async function mergeComServidor() {
+async function recarregarDoServidor() {
   if (!SUPABASE_OK || !userId) return;
 
   try {
@@ -445,20 +390,18 @@ async function mergeComServidor() {
 
     if (!orcs) return;
 
-    // Para cada orçamento remoto, mescla com local
     for (const orc of orcs) {
       const chave = `${orc.ano}-${String(orc.mes).padStart(2, "0")}`;
+
+      // Se já tivermos dados locais deste mês, só preenchemos se o local estiver vazio
       if (!dados[chave]) {
         dados[chave] = {
           salario: orc.salario || 0,
           gastos: [],
-          poupancaMeta: 0,
           agregado: orc.agregado || "1 pessoa",
         };
-      } else {
-        // Local já tem este mês → mantém local mas usa salário remoto se local for 0
-        if (!dados[chave].salario && orc.salario)
-          dados[chave].salario = orc.salario;
+      } else if (!dados[chave].salario) {
+        dados[chave].salario = orc.salario;
       }
 
       const { data: gastosDb } = await supabase
@@ -467,68 +410,36 @@ async function mergeComServidor() {
         .eq("orcamento_id", orc.id)
         .order("created_at", { ascending: true });
 
-      if (gastosDb && gastosDb.length > 0) {
-        // Substitui os gastos locais se remotos tiverem mais
-        if (
-          !dados[chave].gastos ||
-          dados[chave].gastos.length < gastosDb.length
-        ) {
-          dados[chave].gastos = gastosDb.map((g) => ({
-            id: g.id,
-            nome: g.nome,
-            valor: Number(g.valor),
-            cat: "Outros",
-          }));
-        }
-      }
-    }
-
-    // Envia para servidor os meses que só existem localmente
-    for (const chave of Object.keys(dados)) {
-      const remoto = orcs.find(
-        (o) => `${o.ano}-${String(o.mes).padStart(2, "0")}` === chave,
-      );
-      if (!remoto) {
-        const [ano, mes] = chave.split("-").map(Number);
-        const local = dados[chave];
-        const { data: novo, error } = await supabase
-          .from("orcamentos")
-          .insert({ user_id: userId, mes, ano, salario: local.salario || 0 })
-          .select()
-          .single();
-        if (!error && novo) {
-          const inserts = (local.gastos || []).map((g) => ({
-            user_id: userId,
-            orcamento_id: novo.id,
-            categoria_id: 1,
-            nome: g.nome,
-            valor: g.valor,
-          }));
-          if (inserts.length) await supabase.from("gastos").insert(inserts);
-        }
+      if (gastosDb) {
+        // Substitui os gastos pelo que está na base de dados (a BD é a fonte da verdade)
+        dados[chave].gastos = gastosDb.map((g) => ({
+          id: g.id,
+          nome: g.nome,
+          valor: Number(g.valor),
+          cat: "Outros", // Categoria genérica (podes melhorar isto depois guardando o categoria_id)
+        }));
       }
     }
 
     guardarLocal();
+    atualizar(); // Atualiza o ecrã com os dados frescos
   } catch (e) {
-    console.warn("Merge falhou (offline?):", e);
+    console.warn("Falha ao puxar do servidor (offline?):", e);
   }
 }
 
 // ============================================================
-// ===== ARRANQUE =====
+// ===== ARRANQUE DO APP =====
 // ============================================================
 (async () => {
-  lerLocal();
+  lerLocal(); // Carrega o que estava no telefone (para ver algo instantâneo)
 
-  // Tenta restauro de sessão Supabase
   if (SUPABASE_OK) {
     try {
       const { data } = await supabase.auth.getSession();
       if (data.session) {
         userId = data.session.user.id;
-        await mergeComServidor();
-        modoTeste = false;
+        await recarregarDoServidor();
         abrirApp(data.session.user);
         setTimeout(processarFila, 800);
         return;
@@ -536,25 +447,8 @@ async function mergeComServidor() {
     } catch (_) {}
   }
 
-  // Sem sessão → verifica se estava em modo offline
-  if (localStorage.getItem(LS_MODO) === "offline") {
-    modoTeste = true;
-    if (Object.keys(dados).length === 0) {
-      dados[chaveMes(new Date())] = {
-        salario: 172000,
-        gastos: [...gastosExemplo],
-        poupancaMeta: 15800,
-        agregado: "4 pessoas",
-      };
-      guardarLocal();
-    }
-    abrirApp({ email: "Modo Offline" });
-    document.getElementById("nome-logado").innerText = "Modo Offline";
-    atualizar();
-    atualizarSyncStatus();
-  } else {
-    atualizarSyncStatus();
-  }
+  // Se não estiver logado, mostra a tela de login
+  atualizarSyncStatus();
 })();
 
 // ===== NAVEGAÇÃO =====
@@ -568,6 +462,7 @@ function mostrar(id, btn) {
     .querySelectorAll(".menu button")
     .forEach((b) => b.classList.remove("ativo"));
   if (btn) btn.classList.add("ativo");
+
   if (id === "tela-grafico") renderGrafico();
   if (id === "tela-def") atualizarSyncStatus();
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -588,7 +483,7 @@ function mudarMes(delta) {
     renderGrafico();
 }
 
-// ===== GASTOS =====
+// ===== AÇÕES (GASTOS / SALÁRIO) =====
 async function adicionarGasto() {
   const nome = document.getElementById("nome").value.trim();
   const valor = Number(document.getElementById("valor").value);
@@ -597,11 +492,13 @@ async function adicionarGasto() {
   const chave = chaveMes(mesAtual);
   const d = dadosDoMes();
   const gasto = { nome, valor, cat: categoriaAtual, _pendente: true };
+
+  // Atualiza no ecrã imediatamente
   d.gastos.push(gasto);
   guardarLocal();
 
-  // Se tem conta, enfileira para sincronizar
-  if (!modoTeste && userId) {
+  // Se tem conta, enfileira para enviar para o Supabase
+  if (userId) {
     await enfileirarGasto(gasto, chave);
   }
 
@@ -617,8 +514,8 @@ async function remover(i) {
   const d = dadosDoMes();
   const gasto = d.gastos[i];
 
-  // Se tem id remoto, apaga no servidor (online) ou enfileira
-  if (!modoTeste && SUPABASE_OK && gasto.id) {
+  // Se o gasto tem ID, apaga no servidor
+  if (userId && gasto.id) {
     if (navigator.onLine) {
       try {
         await supabase.from("gastos").delete().eq("id", gasto.id);
@@ -626,7 +523,6 @@ async function remover(i) {
         await enfileirar({ tipo: "limpar_gastos", user_id: userId, chave });
       }
     } else {
-      // Sem internet: apaga local e sinaliza limpeza (aproximação)
       await enfileirar({ tipo: "limpar_gastos", user_id: userId, chave });
     }
   }
@@ -641,30 +537,16 @@ async function limparTudo() {
   const chave = chaveMes(mesAtual);
   dadosDoMes().gastos = [];
   guardarLocal();
-  if (!modoTeste && userId) await enfileirarLimpeza(chave);
+  if (userId) await enfileirarLimpeza(chave);
   atualizar();
 }
 
-function carregarExemplo() {
-  if (!confirm("Substituir os dados deste mês pelos exemplos?")) return;
-  dados[chaveMes(mesAtual)] = {
-    salario: 172000,
-    gastos: [...gastosExemplo],
-    poupancaMeta: 15800,
-    agregado: "4 pessoas",
-  };
-  guardarLocal();
-  atualizar();
-  mostrar("tela-inicio", document.querySelector(".menu button"));
-}
-
-// ===== SALÁRIO =====
 async function salvarSalario() {
   const salario = Number(document.getElementById("salario").value) || 0;
   const chave = chaveMes(mesAtual);
   dadosDoMes().salario = salario;
   guardarLocal();
-  if (!modoTeste && userId) await enfileirarSalario(salario, chave);
+  if (userId) await enfileirarSalario(salario, chave);
   atualizar();
 }
 
@@ -673,10 +555,10 @@ async function salvarAgregado() {
   const chave = chaveMes(mesAtual);
   dadosDoMes().agregado = ag;
   guardarLocal();
-  if (!modoTeste && userId) await enfileirarAgregado(ag, chave);
+  if (userId) await enfileirarAgregado(ag, chave);
 }
 
-// ===== ATUALIZAR ECRÃ =====
+// ===== INTERFACE (ATUALIZAR ECRÃ) =====
 function atualizar() {
   const d = dadosDoMes();
   const salario = Number(d.salario) || 0;
@@ -686,21 +568,18 @@ function atualizar() {
     .reduce((s, g) => s + Number(g.valor), 0);
   const saldo = salario - total;
 
-  const lbl = document.getElementById("mes-label");
-  if (lbl) lbl.innerText = nomeMes(mesAtual);
-  const st = document.getElementById("mes-status");
-  if (st) {
-    const k = chaveMes(mesAtual);
-    const hoje = chaveMes(new Date());
-    st.innerText =
-      k === hoje ? "Mês atual" : k < hoje ? "Mês passado" : "Mês futuro";
-  }
+  // Datas
+  document.getElementById("mes-label").innerText = nomeMes(mesAtual);
+  const k = chaveMes(mesAtual);
+  const hoje = chaveMes(new Date());
+  document.getElementById("mes-status").innerText =
+    k === hoje ? "Mês atual" : k < hoje ? "Mês passado" : "Mês futuro";
 
-  const salEl = document.getElementById("salario");
-  if (salEl && salEl.value !== String(salario)) salEl.value = salario;
-  const agEl = document.getElementById("agregado");
-  if (agEl) agEl.value = d.agregado || "1 pessoa";
+  // Inputs
+  document.getElementById("salario").value = salario;
+  document.getElementById("agregado").value = d.agregado || "1 pessoa";
 
+  // Cards
   document.getElementById("totalGasto").innerText =
     total.toLocaleString("pt-PT") + " Kz";
   document.getElementById("saldo").innerText =
@@ -708,6 +587,7 @@ function atualizar() {
   document.getElementById("poupanca").innerText =
     poupanca.toLocaleString("pt-PT") + " Kz";
 
+  // Barra
   const barra = document.getElementById("barra");
   if (barra) {
     barra.style.width =
@@ -718,19 +598,18 @@ function atualizar() {
         : "linear-gradient(90deg,#D4AF37,#F4D03F)";
   }
 
+  // Alerta
   const alerta = document.getElementById("alerta");
-  if (alerta) {
-    if (saldo < 0) {
-      alerta.className = "alerta erro";
-      alerta.innerHTML = `<i class="bi bi-exclamation-triangle-fill"></i> Passaste ${Math.abs(saldo).toLocaleString("pt-PT")} Kz!`;
-    } else {
-      alerta.className = "alerta ok";
-      alerta.innerHTML = `<i class="bi bi-check-circle-fill"></i> Ainda tens ${saldo.toLocaleString("pt-PT")} Kz este mês.`;
-    }
+  if (saldo < 0) {
+    alerta.className = "alerta erro";
+    alerta.innerHTML = `<i class="bi bi-exclamation-triangle-fill"></i> Passaste ${Math.abs(saldo).toLocaleString("pt-PT")} Kz!`;
+  } else {
+    alerta.className = "alerta ok";
+    alerta.innerHTML = `<i class="bi bi-check-circle-fill"></i> Ainda tens ${saldo.toLocaleString("pt-PT")} Kz este mês.`;
   }
 
+  // Lista de Gastos
   const lista = document.getElementById("lista-gastos");
-  if (!lista) return;
   lista.innerHTML =
     d.gastos
       .slice()
@@ -739,22 +618,24 @@ function atualizar() {
         const realIdx = d.gastos.length - 1 - idx;
         const icone = iconesCat[g.cat] || "bi-box-seam";
         const pend = g._pendente
-          ? `<i class="bi bi-cloud-arrow-up" style="color:#F59E0B;font-size:11px;" title="Pendente"></i> `
+          ? `<i class="bi bi-cloud-arrow-up" style="color:#F59E0B;font-size:11px;" title="A enviar..."></i> `
           : "";
-        return `<div class="item ${g._pendente ? "pendente" : ""}">
-      <div>
-        <b><i class="bi ${icone}"></i> ${g.nome}</b> ${pend}<br>
-        <small>${g.cat}</small>
-      </div>
-      <div style="text-align:right">
-        <b>${Number(g.valor).toLocaleString("pt-PT")} Kz</b>
-        <button class="btn-del" onclick="remover(${realIdx})" aria-label="Remover">
-          <i class="bi bi-trash"></i>
-        </button>
-      </div>
-    </div>`;
+        return `
+        <div class="item ${g._pendente ? "pendente" : ""}">
+          <div>
+            <b><i class="bi ${icone}"></i> ${g.nome}</b> ${pend}<br>
+            <small>${g.cat}</small>
+          </div>
+          <div style="text-align:right">
+            <b>${Number(g.valor).toLocaleString("pt-PT")} Kz</b>
+            <button class="btn-del" onclick="remover(${realIdx})" aria-label="Remover">
+              <i class="bi bi-trash"></i>
+            </button>
+          </div>
+        </div>
+      `;
       })
-      .join("") || "<p class='dica'>Nenhum gasto ainda.</p>";
+      .join("") || "<p class='dica'>Nenhum gasto registado neste mês.</p>";
 }
 
 // ===== GRÁFICO =====
@@ -772,20 +653,22 @@ function renderGrafico() {
 
   for (const cat of ordem) {
     const perc = ((porCat[cat] / total) * 100).toFixed(1);
-    html += `<div class="barra-cat">
-      <b><i class="bi ${iconesCat[cat] || "bi-box-seam"}"></i> ${cat} — ${perc}% — ${porCat[cat].toLocaleString("pt-PT")} Kz</b>
-      <div class="barra-progresso"><div class="fill" style="width:${perc}%"></div></div>
-    </div>`;
+    html += `
+      <div class="barra-cat">
+        <b><i class="bi ${iconesCat[cat] || "bi-box-seam"}"></i> ${cat} — ${perc}% — ${porCat[cat].toLocaleString("pt-PT")} Kz</b>
+        <div class="barra-progresso"><div class="fill" style="width:${perc}%"></div></div>
+      </div>`;
     resumo += `${cat}: ${porCat[cat].toLocaleString("pt-PT")} Kz (${perc}%)\n`;
   }
 
-  document.getElementById("grafico").innerHTML = html || "<p>Sem dados.</p>";
+  document.getElementById("grafico").innerHTML =
+    html || "<p>Sem dados para este mês.</p>";
   document.getElementById("resumo-cat").innerHTML = resumo
     ? `<pre>${resumo}</pre>`
     : "";
 }
 
-// ===== PDF =====
+// ===== EXPORTAR E PARTILHAR =====
 async function exportarPDF() {
   try {
     const { jsPDF } =
@@ -824,6 +707,7 @@ async function exportarPDF() {
     y += 7;
     doc.text(`Poupanca: ${poupanca.toLocaleString("pt-PT")} Kz`, 15, y);
     y += 7;
+
     doc.setFont(undefined, "bold");
     const saldo = salario - total;
     doc.setTextColor(saldo < 0 ? 200 : 0, saldo < 0 ? 0 : 128, 0);
@@ -881,9 +765,7 @@ async function exportarPDF() {
     doc.save(nomeFicheiro);
   } catch (e) {
     console.error(e);
-    alert(
-      "Não consegui gerar o PDF. Verifica se tens internet (primeira vez).",
-    );
+    alert("Não consegui gerar o PDF. Verifica a tua ligação à internet.");
   }
 }
 
@@ -907,76 +789,31 @@ async function partilharResumo() {
     } catch (_) {}
   }
   await navigator.clipboard.writeText(txt);
-  alert("Resumo copiado!");
+  alert("Resumo copiado para a área de transferência!");
 }
 
-// ===== BACKUP =====
-function exportarJSON() {
-  const blob = new Blob([JSON.stringify(dados, null, 2)], {
-    type: "application/json",
-  });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `kumbu_backup_${Date.now()}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-function importarJSON(ev) {
-  const file = ev.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    try {
-      const novo = JSON.parse(e.target.result);
-      if (typeof novo !== "object") throw new Error("Formato inválido");
-      if (!confirm("Substituir TODOS os dados pelos do ficheiro?")) return;
-      dados = novo;
-      guardarLocal();
-      atualizar();
-      alert("Importado com sucesso!");
-    } catch (err) {
-      alert("Ficheiro inválido: " + err.message);
-    }
-  };
-  reader.readAsText(file);
-}
-
-// ===== SYNC MANUAL =====
 async function forcarSincronizacao() {
   if (!SUPABASE_OK) return alert("Sem servidor configurado.");
   if (!navigator.onLine) return alert("Sem internet.");
-  if (!userId) {
-    try {
-      const { data } = await supabase.auth.getSession();
-      if (data.session) userId = data.session.user.id;
-      else return alert("Entra na tua conta primeiro.");
-    } catch {
-      return alert("Não consegui validar a sessão.");
-    }
-  }
-  await mergeComServidor();
+  if (!userId) return alert("Entra na tua conta primeiro.");
+
   await processarFila();
-  alert("Sincronização concluída!");
+  await recarregarDoServidor();
+  alert("Sincronização concluída com sucesso!");
 }
 
-// ===== EXPOR =====
+// ===== EXPOR PARA O HTML =====
 window.criarConta = criarConta;
 window.entrar = entrar;
 window.sair = sair;
-window.entrarSemConta = entrarSemConta;
 window.mostrar = mostrar;
 window.escolherCat = escolherCat;
 window.mudarMes = mudarMes;
 window.adicionarGasto = adicionarGasto;
 window.remover = remover;
 window.limparTudo = limparTudo;
-window.carregarExemplo = carregarExemplo;
 window.exportarPDF = exportarPDF;
 window.partilharResumo = partilharResumo;
-window.exportarJSON = exportarJSON;
-window.importarJSON = importarJSON;
 window.forcarSincronizacao = forcarSincronizacao;
 
 // ===== EVENTOS =====
@@ -988,34 +825,26 @@ document.getElementById("salario")?.addEventListener("input", () => {
 });
 document.getElementById("agregado")?.addEventListener("change", salvarAgregado);
 
-// ===== EVENTOS DE REDE =====
 window.addEventListener("online", async () => {
-  console.log("[KUMBU] online — a sincronizar...");
   await atualizarSyncStatus();
   setTimeout(processarFila, 500);
 });
 
 window.addEventListener("offline", () => {
-  console.log("[KUMBU] offline");
   atualizarSyncStatus();
 });
 
-// ===== SYNC PERIÓDICO (a cada 30s se online) =====
 setInterval(() => {
   if (navigator.onLine && userId && !syncing) {
     processarFila();
-    atualizarSyncStatus();
   }
 }, 30000);
 
-// ===== SERVICE WORKER =====
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker
     .register("sw.js")
     .catch((err) => console.warn("SW:", err));
 }
-
-// ===== BG SYNC (se o browser suportar) =====
 if ("serviceWorker" in navigator && "SyncManager" in window) {
   navigator.serviceWorker.ready.then((reg) => {
     reg.sync.register("kumbu-sync").catch(() => {});
