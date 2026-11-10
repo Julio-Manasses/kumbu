@@ -346,7 +346,7 @@ function abrirApp(user) {
   document.getElementById("tela-login").style.display = "none";
   document.getElementById("app-principal").style.display = "block";
   document.getElementById("nome-logado").innerText =
-    `Benvindo, ${userName.split(" ")[0]}`;
+    `BEM-VINDO!, ${userName.split(" ")[0]}`;
   atualizar();
 }
 

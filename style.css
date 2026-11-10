@@ -186,7 +186,7 @@ header {
 .tela {
   display: none;
   padding: 16px;
-  margin-bottom: 2rem;
+  padding-bottom: 4.5rem;
 }
 
 .tela.ativa {
@@ -362,10 +362,6 @@ h3 {
   border-left: 3px solid var(--dourado);
 }
 
-.item.pendente {
-  border-left-color: var(--laranja);
-  opacity: 0.85;
-}
 
 .item small {
   color: var(--cinza-2);
@@ -588,7 +584,7 @@ pre {
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  padding: 8px 0;
+  padding: 10px 0;
   cursor: pointer;
   transition:
     color 0.2s,
