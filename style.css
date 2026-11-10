@@ -65,6 +65,7 @@ header {
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
+
 .logo .bi {
   -webkit-text-fill-color: var(--dourado);
 }
@@ -103,15 +104,19 @@ header {
   font-size: 14px;
   transition: all 0.3s;
 }
+
 .sync-status.online {
   color: var(--verde);
 }
+
 .sync-status.pending {
   color: var(--laranja);
 }
+
 .sync-status.offline {
   color: var(--vermelho);
 }
+
 .sync-status.syncing {
   color: var(--dourado);
   animation: spin 1s linear infinite;
@@ -121,6 +126,7 @@ header {
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
@@ -138,6 +144,7 @@ header {
   border-radius: var(--radius);
   border: 1px solid rgba(212, 175, 55, 0.15);
 }
+
 .mes-selector button {
   background: transparent;
   border: none;
@@ -152,13 +159,16 @@ header {
   justify-content: center;
   transition: background 0.2s;
 }
+
 .mes-selector button:active {
   background: rgba(212, 175, 55, 0.15);
 }
-.mes-selector > div {
+
+.mes-selector>div {
   text-align: center;
   flex: 1;
 }
+
 .mes-selector span {
   display: block;
   font-weight: 700;
@@ -166,6 +176,7 @@ header {
   color: var(--branco);
   text-transform: capitalize;
 }
+
 .mes-selector small {
   font-size: 11px;
   color: var(--cinza-2);
@@ -175,7 +186,9 @@ header {
 .tela {
   display: none;
   padding: 16px;
+  margin-bottom: 2rem;
 }
+
 .tela.ativa {
   display: block;
   animation: fade 0.25s ease;
@@ -186,6 +199,7 @@ header {
     opacity: 0;
     transform: translateY(8px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -198,6 +212,7 @@ h2 {
   color: var(--dourado);
   margin-bottom: 14px;
 }
+
 h3 {
   font-size: 15px;
   margin: 20px 0 10px;
@@ -207,17 +222,16 @@ h3 {
 
 /* ===== CARD SALÁRIO ===== */
 .card-salario {
-  background: linear-gradient(
-    135deg,
-    rgba(212, 175, 55, 0.08) 0%,
-    rgba(26, 47, 82, 0.6) 100%
-  );
+  background: linear-gradient(135deg,
+      rgba(212, 175, 55, 0.08) 0%,
+      rgba(26, 47, 82, 0.6) 100%);
   border: 1px solid rgba(212, 175, 55, 0.2);
   border-radius: var(--radius);
   padding: 16px;
   box-shadow: var(--sombra);
   backdrop-filter: blur(8px);
 }
+
 .card-salario label {
   display: block;
   font-size: 13px;
@@ -225,6 +239,7 @@ h3 {
   color: var(--dourado);
   margin: 8px 0 6px;
 }
+
 .card-salario input,
 .card-salario select {
   width: 100%;
@@ -236,15 +251,18 @@ h3 {
   color: #fff;
   font-weight: 600;
 }
+
 .card-salario select option {
   background: var(--azul);
   color: #fff;
 }
+
 .salario-input {
   display: flex;
   align-items: center;
   gap: 8px;
 }
+
 .salario-input span {
   font-weight: 700;
   color: var(--dourado);
@@ -257,6 +275,7 @@ h3 {
   gap: 10px;
   margin: 16px 0;
 }
+
 .mini-card {
   flex: 1;
   background: var(--azul-2);
@@ -266,6 +285,7 @@ h3 {
   text-align: center;
   box-shadow: var(--sombra-sm);
 }
+
 .mini-card small {
   font-size: 10px;
   color: var(--cinza-2);
@@ -273,6 +293,7 @@ h3 {
   letter-spacing: 0.5px;
   font-weight: 600;
 }
+
 .mini-card b {
   display: block;
   margin-top: 6px;
@@ -280,9 +301,11 @@ h3 {
   word-break: break-word;
   font-weight: 800;
 }
+
 .verde {
   border-color: var(--verde);
 }
+
 .laranja {
   border-color: var(--laranja);
 }
@@ -294,6 +317,7 @@ h3 {
   border-radius: 20px;
   overflow: hidden;
 }
+
 #barra {
   height: 100%;
   width: 0%;
@@ -313,10 +337,12 @@ h3 {
   font-size: 13px;
   font-weight: 600;
 }
+
 .alerta.erro {
   background: #fee2e2;
   color: #991b1b;
 }
+
 .alerta.ok {
   background: #dcfce7;
   color: #166534;
@@ -335,17 +361,21 @@ h3 {
   animation: fade 0.2s ease;
   border-left: 3px solid var(--dourado);
 }
+
 .item.pendente {
   border-left-color: var(--laranja);
   opacity: 0.85;
 }
+
 .item small {
   color: var(--cinza-2);
   font-size: 11px;
 }
+
 .item b {
   font-size: 14px;
 }
+
 .btn-del {
   background: var(--vermelho);
   border: none;
@@ -365,6 +395,7 @@ h3 {
   gap: 8px;
   margin: 10px 0 16px;
 }
+
 .chip {
   padding: 10px 14px;
   border-radius: 20px;
@@ -376,6 +407,7 @@ h3 {
   transition: all 0.2s;
   min-height: 40px;
 }
+
 .chip.ativo {
   background: linear-gradient(135deg, var(--dourado) 0%, var(--dourado-2) 100%);
   color: #000;
@@ -391,6 +423,7 @@ label {
   margin: 10px 0 4px;
   color: var(--cinza-2);
 }
+
 input,
 select {
   width: 100%;
@@ -403,12 +436,14 @@ select {
   margin: 4px 0;
   font-family: inherit;
 }
+
 input:focus,
 select:focus {
   outline: none;
   border-color: var(--dourado);
   box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.15);
 }
+
 input::placeholder {
   color: rgba(255, 255, 255, 0.35);
 }
@@ -431,9 +466,11 @@ input::placeholder {
   box-shadow: 0 4px 15px rgba(212, 175, 55, 0.25);
   min-height: 48px;
 }
+
 .btn-principal:active {
   transform: scale(0.97);
 }
+
 .btn-principal:focus-visible {
   outline: 2px solid var(--dourado-2);
   outline-offset: 2px;
@@ -465,24 +502,13 @@ input::placeholder {
   min-height: 48px;
 }
 
-.btn-link {
-  background: none;
-  border: none;
-  color: var(--dourado);
-  text-decoration: underline;
-  margin-top: 14px;
-  width: 100%;
-  font-size: 14px;
-  cursor: pointer;
-  padding: 8px;
-}
-
 /* ===== PDF / SHARE ===== */
 .cards-pdf {
   display: flex;
   gap: 10px;
   margin-top: 16px;
 }
+
 .cards-pdf button {
   margin-top: 0;
   flex: 1;
@@ -492,15 +518,18 @@ input::placeholder {
 .barra-cat {
   margin: 14px 0;
 }
+
 .barra-cat b {
   font-size: 13px;
   display: block;
   margin-bottom: 6px;
   font-weight: 600;
 }
+
 .barra-cat .barra-progresso {
   height: 14px;
 }
+
 .barra-cat .fill {
   height: 100%;
   background: linear-gradient(90deg, var(--dourado) 0%, var(--dourado-2) 100%);
@@ -529,6 +558,7 @@ pre {
   font-size: 13px;
   color: var(--cinza);
 }
+
 .info-box p {
   margin: 6px 0;
 }
@@ -547,6 +577,7 @@ pre {
   border-top: 1px solid rgba(212, 175, 55, 0.15);
   z-index: 100;
 }
+
 .menu button {
   flex: 1;
   background: none;
@@ -564,12 +595,15 @@ pre {
     transform 0.1s;
   min-height: 52px;
 }
+
 .menu button:active {
   transform: scale(0.92);
 }
+
 .menu button.ativo {
   color: var(--dourado);
 }
+
 .menu span {
   font-size: 10px;
   font-weight: 600;
@@ -585,6 +619,7 @@ pre {
   border-radius: var(--radius-lg);
   box-shadow: var(--sombra-lg);
 }
+
 .login-box .logo {
   color: var(--azul);
   text-align: center;
@@ -593,23 +628,27 @@ pre {
   -webkit-text-fill-color: var(--azul);
   background: none;
 }
+
 .login-box .sub {
   text-align: center;
   color: #666;
   font-size: 13px;
   margin-bottom: 20px;
 }
+
 .login-box label {
   color: #333;
   font-weight: 700;
   display: block;
   margin-top: 14px;
 }
+
 .login-box input {
   border: 1.5px solid #ddd;
   background: #f8f8f8;
   color: #000;
 }
+
 .login-box input:focus {
   border-color: var(--azul);
 }
@@ -622,6 +661,7 @@ pre {
   font-size: 13px;
   font-weight: 600;
 }
+
 .dica {
   color: #888;
   text-align: center;
@@ -631,6 +671,7 @@ pre {
 
 /* ===== RESPONSIVO ===== */
 @media (min-width: 600px) {
+
   .tela,
   header,
   .mes-selector {
@@ -638,6 +679,7 @@ pre {
     margin-left: auto;
     margin-right: auto;
   }
+
   .menu {
     max-width: 520px;
     margin: 0 auto;
