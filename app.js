@@ -1,4 +1,4 @@
-// ===== KUMBU - APP.JS v2.0.0 PRO =====
+// ===== KUMBU - APP.JS v2.0.2 PRO =====
 
 let supabase = null;
 let SUPABASE_OK = false;
@@ -22,7 +22,6 @@ let metas = [];
 let userId = null;
 let userName = "Utilizador";
 let syncing = false;
-let isPremium = true;
 
 const LS_DADOS = "kumbu_dados_v5";
 const LS_METAS = "kumbu_metas_v5";
@@ -153,7 +152,7 @@ function lerLocal() {
 }
 
 // ============================================================
-// ===== NOTIFICAÇÕES PUSH =====
+// ===== NOTIFICAÇÕES =====
 // ============================================================
 async function pedirPermissaoNotificacao() {
   if (!("Notification" in window))
@@ -161,11 +160,9 @@ async function pedirPermissaoNotificacao() {
   const permission = await Notification.requestPermission();
   if (permission === "granted") {
     alert("Notificações ativadas com sucesso!");
-    new Notification("Kumbu", {
-      body: "As notificações estão ativas! Vamos te lembrar de gerir o teu dinheiro.",
-    });
+    new Notification("Kumbu", { body: "As notificações estão ativas!" });
   } else {
-    alert("Permissão de notificações negada.");
+    alert("Permissão negada.");
   }
 }
 
@@ -186,7 +183,7 @@ function dispararNotificacao(titulo, mensagem) {
 }
 
 // ============================================================
-// ===== INDICADOR DE SYNC =====
+// ===== SYNC =====
 // ============================================================
 async function atualizarSyncStatus() {
   const el = document.getElementById("sync-status");
@@ -210,9 +207,6 @@ async function atualizarSyncStatus() {
   }
 }
 
-// ============================================================
-// ===== FILA E SYNC =====
-// ============================================================
 async function enfileirarGasto(gasto, chave) {
   if (userId) {
     await enfileirar({ tipo: "add_gasto", user_id: userId, chave, gasto });
@@ -248,14 +242,15 @@ async function processarFila() {
       try {
         const orcId = await garantirOrcamento(op.user_id, op.chave);
         if (op.tipo === "add_gasto") {
-          // CORREÇÃO: Enviar também a categoria (se a tabela tiver, senão ignora)
-          await supabase.from("gastos").insert({
-            user_id: op.user_id,
-            orcamento_id: orcId,
-            categoria_id: 1,
-            nome: op.gasto.nome,
-            valor: op.gasto.valor,
-          });
+          await supabase
+            .from("gastos")
+            .insert({
+              user_id: op.user_id,
+              orcamento_id: orcId,
+              categoria_id: 1,
+              nome: op.gasto.nome,
+              valor: op.gasto.valor,
+            });
         } else if (op.tipo === "set_salario") {
           await supabase
             .from("orcamentos")
@@ -298,11 +293,11 @@ async function garantirOrcamento(uid, chave) {
 }
 
 // ============================================================
-// ===== AUTH E PERFIL (Sessão Persistente) =====
+// ===== AUTH =====
 // ============================================================
 async function criarConta() {
   if (!navigator.onLine)
-    return mostrarMsg("Para criar uma conta, precisa de internet.");
+    return mostrarMsg("Para criar conta, precisa de internet.");
   const btn = document.getElementById("btn-criar");
   const txtOriginal = btn.innerHTML;
   btn.innerHTML = `<i class="bi bi-arrow-repeat" style="animation: spin 1s linear infinite; display:inline-block;"></i> A criar...`;
@@ -318,7 +313,6 @@ async function criarConta() {
     btn.disabled = false;
     return;
   }
-
   try {
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -343,9 +337,7 @@ async function criarConta() {
 
 async function entrar() {
   if (!navigator.onLine)
-    return mostrarMsg(
-      "Sem internet! Use o botão laranja abaixo para entrar offline.",
-    );
+    return mostrarMsg("Sem internet! Use o botão offline.");
   const btn = document.getElementById("btn-entrar");
   const txtOriginal = btn.innerHTML;
   btn.innerHTML = `<i class="bi bi-arrow-repeat" style="animation: spin 1s linear infinite; display:inline-block;"></i> A entrar...`;
@@ -362,11 +354,9 @@ async function entrar() {
     if (error) throw error;
     userId = data.user.id;
     localStorage.setItem(LS_USER_ID, userId);
-
     await carregarPerfil();
     await recarregarDoServidor();
     localStorage.setItem(LS_USER_NAME, userName);
-
     abrirApp(data.user);
     setTimeout(processarFila, 500);
   } catch (e) {
@@ -381,21 +371,16 @@ async function entrar() {
 function entrarOffline() {
   const idSalvo = localStorage.getItem(LS_USER_ID);
   const nomeSalvo = localStorage.getItem(LS_USER_NAME);
-
   if (idSalvo) {
     userId = idSalvo;
     userName = nomeSalvo || "Utilizador";
     lerLocal();
     abrirApp({ id: userId });
     setTimeout(() => {
-      alert(
-        "Você está no modo offline. Os gastos serão sincronizados quando a internet voltar.",
-      );
+      alert("Você está no modo offline. Os gastos serão sincronizados depois.");
     }, 500);
   } else {
-    mostrarMsg(
-      "Nenhuma conta encontrada. Conecte-se e faça login pela primeira vez.",
-    );
+    mostrarMsg("Nenhuma conta encontrada. Conecte-se e faça login primeiro.");
     document.getElementById("msg-login").style.color = "var(--laranja)";
   }
 }
@@ -412,17 +397,24 @@ async function carregarPerfil() {
 }
 
 async function sair() {
+  // 1. Desliga do Supabase
   try {
     if (supabase) await supabase.auth.signOut();
   } catch (_) {}
-  location.reload();
+
+  // 2. Limpa a memória local do telemóvel
+  localStorage.removeItem(LS_USER_ID);
+  localStorage.removeItem(LS_USER_NAME);
+
+  // 3. Força o recarregamento da página para voltar ao login
+  window.location.reload();
 }
 
 function abrirApp(user) {
   document.getElementById("tela-login").style.display = "none";
   document.getElementById("app-principal").style.display = "block";
   document.getElementById("nome-logado").innerText =
-    `BEM-VINDO!, ${userName.split(" ")[0]}`;
+    `BEM-VINDO, ${userName.split(" ")[0].toUpperCase()}`;
   atualizar();
   renderMetas();
   verificarLembrete();
@@ -433,36 +425,35 @@ function mostrarMsg(txt) {
 }
 
 // ============================================================
-// ===== DADOS E INTERFACE (CORREÇÃO DA SINCRONIZAÇÃO) =====
+// ===== DADOS DO SERVIDOR =====
 // ============================================================
 async function recarregarDoServidor() {
   if (!SUPABASE_OK || !userId) return;
   try {
-    // 1. Buscar todos os orçamentos (meses) do utilizador
+    // Limpa o cache antigo para forçar a puxar os dados frescos
+    dados = {};
+
+    // 1. Puxa os orçamentos (meses)
     const { data: orcs } = await supabase
       .from("orcamentos")
       .select("id, mes, ano, salario")
       .eq("user_id", userId);
-    if (!orcs || orcs.length === 0) return;
+
+    if (!orcs || orcs.length === 0) {
+      guardarLocal();
+      atualizar();
+      return;
+    }
 
     for (const orc of orcs) {
       const chave = `${orc.ano}-${String(orc.mes).padStart(2, "0")}`;
+      dados[chave] = {
+        salario: orc.salario || 0,
+        gastos: [],
+        agregado: "1 pessoa",
+      };
 
-      // Cria o mês se não existir no celular
-      if (!dados[chave]) {
-        dados[chave] = {
-          salario: orc.salario || 0,
-          gastos: [],
-          agregado: "1 pessoa",
-        };
-      } else {
-        // Se o mês já existe (offline), atualiza o salário se estiver vazio
-        if (!dados[chave].salario || dados[chave].salario === 0) {
-          dados[chave].salario = orc.salario;
-        }
-      }
-
-      // 2. Buscar os gastos associados a este mês
+      // 2. Puxa os gastos deste mês
       const { data: gastosDb } = await supabase
         .from("gastos")
         .select("id, nome, valor")
@@ -470,29 +461,23 @@ async function recarregarDoServidor() {
         .order("created_at", { ascending: true });
 
       if (gastosDb && gastosDb.length > 0) {
-        // Filtra os gastos que estão pendentes localmente para não duplicar
-        const pendentesLocais = dados[chave].gastos.filter((g) => g._pendente);
-
-        // Junta os gastos do banco de dados com os que estão pendentes no telemóvel
-        const gastosFormatados = gastosDb.map((g) => ({
+        dados[chave].gastos = gastosDb.map((g) => ({
           id: g.id,
           nome: g.nome,
           valor: Number(g.valor),
-          // CORREÇÃO: Mantém a categoria original se houver, senão define como Outros
-          cat: g.categoria_id === 1 ? "Igreja" : "Outros",
+          cat: "Outros", // Como o teu BD não guarda a categoria específica, fica Outros
         }));
-
-        dados[chave].gastos = [...gastosFormatados, ...pendentesLocais];
       }
     }
     guardarLocal();
     atualizar();
+    renderMetas();
   } catch (e) {
-    console.error("Erro ao sincronizar com o servidor:", e);
+    console.error("Erro ao sincronizar:", e);
   }
 }
 
-// ===== PERSISTÊNCIA DE SESSÃO (Inicialização) =====
+// ===== INICIALIZAÇÃO =====
 (async () => {
   lerLocal();
   if (SUPABASE_OK) {
@@ -502,7 +487,7 @@ async function recarregarDoServidor() {
         userId = data.session.user.id;
         localStorage.setItem(LS_USER_ID, userId);
         await carregarPerfil();
-        await recarregarDoServidor(); // Puxa os dados
+        await recarregarDoServidor();
         localStorage.setItem(LS_USER_NAME, userName);
         abrirApp(data.session.user);
         setTimeout(processarFila, 800);
@@ -511,15 +496,8 @@ async function recarregarDoServidor() {
     } catch (_) {}
   }
 
-  // Se não houver sessão no Supabase, tenta entrar offline automaticamente
-  const idSalvo = localStorage.getItem(LS_USER_ID);
-  if (idSalvo) {
-    userId = idSalvo;
-    userName = localStorage.getItem(LS_USER_NAME) || "Utilizador";
-    abrirApp({ id: userId });
-  } else {
-    atualizarSyncStatus();
-  }
+  // Se a página recarregar, ele não entra automaticamente, fica no login.
+  atualizarSyncStatus();
 })();
 
 function mostrar(id, btn) {
@@ -558,8 +536,6 @@ async function adicionarGasto() {
   if (!nome || !valor) return alert("Escreve o nome e o valor");
 
   const chave = chaveMes(mesAtual);
-
-  // Cria o gasto no celular e marca como pendente
   dadosDoMes().gastos.push({
     nome,
     valor,
@@ -567,13 +543,11 @@ async function adicionarGasto() {
     _pendente: true,
   });
   guardarLocal();
-
   if (userId)
     await enfileirarGasto({ nome, valor, cat: categoriaAtual }, chave);
 
   document.getElementById("nome").value = "";
   document.getElementById("valor").value = "";
-
   atualizar();
   renderMetas();
   mostrar("tela-inicio", document.querySelector(".menu button"));
@@ -613,34 +587,29 @@ async function salvarSalario() {
 }
 
 // ============================================================
-// ===== FUNÇÕES DE METAS (Sincronizadas com Poupança) =====
+// ===== METAS E GRÁFICOS =====
 // ============================================================
 function salvarMeta() {
   const nome = document.getElementById("meta-nome").value.trim();
   const valor = Number(document.getElementById("meta-valor").value);
-
   if (!nome || !valor) return alert("Preenche o nome e o valor da meta.");
-
   metas.push({ nome, valorTotal: valor, id: Date.now() });
   guardarLocal();
-
   document.getElementById("meta-nome").value = "";
   document.getElementById("meta-valor").value = "";
-
   renderMetas();
 }
 
 function renderMetas() {
   const container = document.getElementById("lista-metas");
   if (!container) return;
-
   const poupancaTotal = dadosDoMes()
     .gastos.filter((g) => g.cat === "Poupança")
     .reduce((s, g) => s + Number(g.valor), 0);
 
   if (metas.length === 0) {
     container.innerHTML =
-      "<p class='dica' style='color: var(--cinza-2); text-align: center;'>Ainda não tens metas. Cria uma acima!</p>";
+      "<p class='dica' style='color: var(--cinza-2); text-align: center;'>Ainda não tens metas.</p>";
     return;
   }
 
@@ -648,7 +617,6 @@ function renderMetas() {
     .map((m, i) => {
       const valorGuardado = Math.min(m.valorTotal, poupancaTotal);
       const progresso = Math.min(100, (valorGuardado / m.valorTotal) * 100);
-
       return `
       <div class="item" style="border-left-color: var(--verde); flex-direction: column; align-items: stretch; padding: 16px;">
         <div style="display: flex; justify-content: space-between; margin-bottom: 12px; align-items: center;">
@@ -656,11 +624,8 @@ function renderMetas() {
           <button class="btn-del" onclick="removerMeta(${i})" style="padding: 6px; min-width: auto; min-height: auto; border-radius: 50%;"><i class="bi bi-trash"></i></button>
         </div>
         <small style="margin-bottom: 8px; color: var(--cinza); font-size: 13px;">Guardado: <b>${valorGuardado.toLocaleString("pt-PT")} Kz</b> de ${m.valorTotal.toLocaleString("pt-PT")} Kz</small>
-        <div class="barra-progresso" style="height: 10px; margin-top: 4px; background: rgba(0,0,0,0.3);">
-          <div class="fill" style="width: ${progresso}%; background: var(--verde);"></div>
-        </div>
-      </div>
-    `;
+        <div class="barra-progresso" style="height: 10px; margin-top: 4px; background: rgba(0,0,0,0.3);"><div class="fill" style="width: ${progresso}%; background: var(--verde);"></div></div>
+      </div>`;
     })
     .join("");
 }
@@ -672,9 +637,6 @@ function removerMeta(i) {
   renderMetas();
 }
 
-// ============================================================
-// ===== INTERFACE E GRÁFICOS =====
-// ============================================================
 function atualizar() {
   const d = dadosDoMes();
   const salario = Number(d.salario) || 0;
@@ -731,16 +693,12 @@ function atualizar() {
           ? `<i class="bi bi-cloud-arrow-up" style="color:#F59E0B;font-size:12px;"></i> `
           : "";
         return `
-      <div class="item ${g._pendente ? "pendente" : ""}">
-        <div>
-          <b><i class="bi ${icone}"></i> ${g.nome}</b> ${pend}<br>
-          <small>${g.cat}</small>
-        </div>
-        <div style="text-align:right">
-          <b>${Number(g.valor).toLocaleString("pt-PT")} Kz</b>
-          <button class="btn-del" onclick="remover(${realIdx})"><i class="bi bi-trash"></i></button>
-        </div>
-      </div>`;
+        <div class="item ${g._pendente ? "pendente" : ""}">
+          <div><b><i class="bi ${icone}"></i> ${g.nome}</b> ${pend}<br><small>${g.cat}</small></div>
+          <div style="text-align:right"><b>${Number(g.valor).toLocaleString("pt-PT")} Kz</b>
+            <button class="btn-del" onclick="remover(${realIdx})"><i class="bi bi-trash"></i></button>
+          </div>
+        </div>`;
       })
       .join("") ||
     "<p style='color: var(--cinza-2); text-align: center;'>Nenhum gasto registado neste mês.</p>";
@@ -775,11 +733,8 @@ function renderGrafico() {
 
   for (const cat of ordem) {
     const perc = ((porCat[cat] / total) * 100).toFixed(1);
-    html += `
-      <div class="barra-cat">
-        <b><i class="bi ${iconesCat[cat] || "bi-box-seam"}"></i> ${cat} — ${perc}% — ${porCat[cat].toLocaleString("pt-PT")} Kz</b>
-        <div class="barra-progresso"><div class="fill" style="width:${perc}%"></div></div>
-      </div>`;
+    html += `<div class="barra-cat"><b><i class="bi ${iconesCat[cat] || "bi-box-seam"}"></i> ${cat} — ${perc}% — ${porCat[cat].toLocaleString("pt-PT")} Kz</b>
+        <div class="barra-progresso"><div class="fill" style="width:${perc}%"></div></div></div>`;
     resumo += `${cat}: ${porCat[cat].toLocaleString("pt-PT")} Kz (${perc}%)\n`;
   }
 
@@ -792,16 +747,14 @@ function renderGrafico() {
 }
 
 // ============================================================
-// ===== GESTÃO DE CONTA E DEFINIÇÕES =====
+// ===== GESTÃO DE CONTA =====
 // ============================================================
 async function alterarSenha() {
-  if (!navigator.onLine)
-    return alert("Precisa de internet para alterar a senha.");
+  if (!navigator.onLine) return alert("Precisa de internet.");
   const novaSenha = prompt("Digite a nova senha (mínimo 6 caracteres):");
   if (!novaSenha) return;
   if (novaSenha.length < 6)
     return alert("A senha deve ter no mínimo 6 caracteres.");
-
   try {
     const { error } = await supabase.auth.updateUser({ password: novaSenha });
     if (error) throw error;
@@ -812,29 +765,22 @@ async function alterarSenha() {
 }
 
 async function alterarNome() {
-  const novoNome = prompt("Digite o seu novo nome de exibição:");
+  const novoNome = prompt("Digite o seu novo nome:");
   if (!novoNome) return;
-
   userName = novoNome;
   localStorage.setItem(LS_USER_NAME, userName);
   document.getElementById("nome-logado").innerText =
-    `BEM-VINDO!, ${userName.split(" ")[0]}`;
-
+    `BEM-VINDO, ${userName.split(" ")[0].toUpperCase()}`;
   if (SUPABASE_OK && userId && navigator.onLine) {
     try {
       await supabase.from("perfis").update({ nome: novoNome }).eq("id", userId);
-      alert("Nome alterado com sucesso no servidor!");
-    } catch (e) {
-      alert("Nome alterado localmente. Será sincronizado quando houver rede.");
-    }
+    } catch (e) {}
   }
 }
 
 async function eliminarConta() {
   if (!confirm("TENS A CERTEZA? Todos os teus dados serão APAGADOS.")) return;
-  if (!confirm("Esta ação é irreversível. Deseja mesmo eliminar a conta?"))
-    return;
-
+  if (!confirm("Esta ação é irreversível. Deseja mesmo eliminar?")) return;
   try {
     alert(
       "Por motivos de segurança, solicite ao administrador. Os teus dados locais serão apagados.",
@@ -846,9 +792,6 @@ async function eliminarConta() {
   }
 }
 
-// ============================================================
-// ===== EXPORTAR PDF =====
-// ============================================================
 async function exportarPDF() {
   try {
     const { jsPDF } =
@@ -877,7 +820,6 @@ async function exportarPDF() {
     y += 7;
     doc.text(`Total Gasto: ${total.toLocaleString("pt-PT")} Kz`, 15, y);
     y += 7;
-
     doc.setFont(undefined, "bold");
     const saldo = salario - total;
     doc.text(`Saldo: ${saldo.toLocaleString("pt-PT")} Kz`, 15, y);
@@ -894,7 +836,6 @@ async function exportarPDF() {
       });
       y += 6;
     });
-
     doc.save(`Kumbu_${nomeMes(mesAtual).replace(" ", "_")}.pdf`);
   } catch (e) {
     alert("Erro ao gerar PDF.");
@@ -902,7 +843,7 @@ async function exportarPDF() {
 }
 
 // ============================================================
-// ===== LEMBRETES (Notificação Real) =====
+// ===== LEMBRETES =====
 // ============================================================
 function verificarLembrete() {
   const hoje = new Date().getDate();
@@ -913,12 +854,11 @@ function verificarLembrete() {
       document.getElementById("banner-lembrete").style.display = "flex";
       dispararNotificacao(
         "Lembrete Kumbu",
-        "Não te esqueças de registar os teus gastos e ver as tuas metas!",
+        "Não te esqueças de registar os teus gastos!",
       );
     }
   }
 }
-
 function fecharLembrete() {
   document.getElementById("banner-lembrete").style.display = "none";
   localStorage.setItem("kumbu_lembrete_dismissed", new Date().toDateString());
@@ -946,7 +886,6 @@ window.pedirPermissaoNotificacao = pedirPermissaoNotificacao;
 
 document.getElementById("salario")?.addEventListener("change", salvarSalario);
 document.getElementById("bloco-notas")?.addEventListener("input", guardarLocal);
-
 window.addEventListener("online", () => {
   atualizarSyncStatus();
   setTimeout(processarFila, 500);
