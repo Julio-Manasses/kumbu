@@ -4,7 +4,8 @@ let supabase = null;
 let SUPABASE_OK = false;
 
 try {
-  const { createClient } = await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm");
+  const { createClient } =
+    await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm");
   const SUPABASE_URL = "https://lcfcurptohrpzxdaotwf.supabase.co";
   const SUPABASE_KEY = "sb_publishable_og0DiPnnVHgMn0TyhwDGvQ_WdnZ442E";
   supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -27,11 +28,15 @@ const LS_DADOS = "kumbu_dados_v5";
 const LS_METAS = "kumbu_metas_v5";
 const LS_USER_ID = "kumbu_user_id";
 const LS_USER_NAME = "kumbu_user_name";
-const LS_NOTAS = "kumbu_notas"; // Novo LocalStorage para notas
+const LS_NOTAS = "kumbu_notas";
 
 const iconesCat = {
-  Igreja: "bi-bank", Casa: "bi-house-door", Comida: "bi-egg-fried",
-  Transporte: "bi-bus-front", Poupança: "bi-piggy-bank", Outros: "bi-box-seam",
+  Igreja: "bi-bank",
+  Casa: "bi-house-door",
+  Comida: "bi-egg-fried",
+  Transporte: "bi-bus-front",
+  Poupança: "bi-piggy-bank",
+  Outros: "bi-box-seam",
 };
 
 // ============================================================
@@ -93,7 +98,9 @@ async function contarFila() {
       req.onsuccess = () => resolve(req.result || 0);
       req.onerror = () => resolve(0);
     });
-  } catch { return 0; }
+  } catch {
+    return 0;
+  }
 }
 
 // ===== HELPERS =====
@@ -101,7 +108,20 @@ function chaveMes(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 }
 function nomeMes(date) {
-  const meses = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+  const meses = [
+    "Janeiro",
+    "Fevereiro",
+    "Março",
+    "Abril",
+    "Maio",
+    "Junho",
+    "Julho",
+    "Agosto",
+    "Setembro",
+    "Outubro",
+    "Novembro",
+    "Dezembro",
+  ];
   return `${meses[date.getMonth()]} ${date.getFullYear()}`;
 }
 function dadosDoMes() {
@@ -110,10 +130,11 @@ function dadosDoMes() {
   return dados[k];
 }
 function guardarLocal() {
-  try { 
-    localStorage.setItem(LS_DADOS, JSON.stringify(dados)); 
+  try {
+    localStorage.setItem(LS_DADOS, JSON.stringify(dados));
     localStorage.setItem(LS_METAS, JSON.stringify(metas));
-    localStorage.setItem(LS_NOTAS, document.getElementById("bloco-notas").value); // Guarda as notas
+    const notasEl = document.getElementById("bloco-notas");
+    if (notasEl) localStorage.setItem(LS_NOTAS, notasEl.value);
   } catch (e) {}
 }
 function lerLocal() {
@@ -123,17 +144,20 @@ function lerLocal() {
     const rawM = localStorage.getItem(LS_METAS);
     if (rawM) metas = JSON.parse(rawM) || [];
     const rawN = localStorage.getItem(LS_NOTAS);
-    if (rawN) document.getElementById("bloco-notas").value = rawN; // Carrega as notas
-  } catch (e) { dados = {}; metas = []; }
+    const notasEl = document.getElementById("bloco-notas");
+    if (rawN && notasEl) notasEl.value = rawN;
+  } catch (e) {
+    dados = {};
+    metas = [];
+  }
 }
 
 // ============================================================
 // ===== NOTIFICAÇÕES PUSH =====
 // ============================================================
 async function pedirPermissaoNotificacao() {
-  if (!("Notification" in window)) {
+  if (!("Notification" in window))
     return alert("O seu navegador não suporta notificações.");
-  }
   const permission = await Notification.requestPermission();
   if (permission === "granted") {
     alert("Notificações ativadas com sucesso!");
@@ -150,7 +174,9 @@ function dispararNotificacao(titulo, mensagem) {
     if (navigator.serviceWorker.controller) {
       navigator.serviceWorker.ready.then((reg) => {
         reg.showNotification(titulo, {
-          body: mensagem, icon: "icons/icon-192.png", vibrate: [200, 100, 200],
+          body: mensagem,
+          icon: "icons/icon-192.png",
+          vibrate: [200, 100, 200],
         });
       });
     } else {
@@ -169,23 +195,44 @@ async function atualizarSyncStatus() {
   const online = navigator.onLine;
 
   el.className = "sync-status";
-  if (syncing) { el.classList.add("syncing"); el.innerHTML = `<i class="bi bi-arrow-repeat"></i>`; }
-  else if (!online) { el.classList.add("offline"); el.innerHTML = `<i class="bi bi-cloud-slash"></i>`; }
-  else if (pendentes > 0) { el.classList.add("pending"); el.innerHTML = `<i class="bi bi-cloud-arrow-up"></i>`; }
-  else { el.classList.add("online"); el.innerHTML = `<i class="bi bi-cloud-check"></i>`; }
+  if (syncing) {
+    el.classList.add("syncing");
+    el.innerHTML = `<i class="bi bi-arrow-repeat"></i>`;
+  } else if (!online) {
+    el.classList.add("offline");
+    el.innerHTML = `<i class="bi bi-cloud-slash"></i>`;
+  } else if (pendentes > 0) {
+    el.classList.add("pending");
+    el.innerHTML = `<i class="bi bi-cloud-arrow-up"></i>`;
+  } else {
+    el.classList.add("online");
+    el.innerHTML = `<i class="bi bi-cloud-check"></i>`;
+  }
 }
 
 // ============================================================
 // ===== FILA E SYNC =====
 // ============================================================
 async function enfileirarGasto(gasto, chave) {
-  if (userId) { await enfileirar({ tipo: "add_gasto", user_id: userId, chave, gasto }); atualizarSyncStatus(); tentarSincronizar(); }
+  if (userId) {
+    await enfileirar({ tipo: "add_gasto", user_id: userId, chave, gasto });
+    atualizarSyncStatus();
+    tentarSincronizar();
+  }
 }
 async function enfileirarSalario(salario, chave) {
-  if (userId) { await enfileirar({ tipo: "set_salario", user_id: userId, chave, salario }); atualizarSyncStatus(); tentarSincronizar(); }
+  if (userId) {
+    await enfileirar({ tipo: "set_salario", user_id: userId, chave, salario });
+    atualizarSyncStatus();
+    tentarSincronizar();
+  }
 }
 async function enfileirarLimpeza(chave) {
-  if (userId) { await enfileirar({ tipo: "limpar_gastos", user_id: userId, chave }); atualizarSyncStatus(); tentarSincronizar(); }
+  if (userId) {
+    await enfileirar({ tipo: "limpar_gastos", user_id: userId, chave });
+    atualizarSyncStatus();
+    tentarSincronizar();
+  }
 }
 async function tentarSincronizar() {
   if (navigator.onLine && userId && !syncing) processarFila();
@@ -201,24 +248,49 @@ async function processarFila() {
       try {
         const orcId = await garantirOrcamento(op.user_id, op.chave);
         if (op.tipo === "add_gasto") {
-          await supabase.from("gastos").insert({ user_id: op.user_id, orcamento_id: orcId, categoria_id: 1, nome: op.gasto.nome, valor: op.gasto.valor });
+          // CORREÇÃO: Enviar também a categoria (se a tabela tiver, senão ignora)
+          await supabase.from("gastos").insert({
+            user_id: op.user_id,
+            orcamento_id: orcId,
+            categoria_id: 1,
+            nome: op.gasto.nome,
+            valor: op.gasto.valor,
+          });
         } else if (op.tipo === "set_salario") {
-          await supabase.from("orcamentos").update({ salario: op.salario }).eq("id", orcId);
+          await supabase
+            .from("orcamentos")
+            .update({ salario: op.salario })
+            .eq("id", orcId);
         } else if (op.tipo === "limpar_gastos") {
           await supabase.from("gastos").delete().eq("orcamento_id", orcId);
         }
         await removerDaFila(op.id);
-      } catch (e) { if (!navigator.onLine) break; }
+      } catch (e) {
+        if (!navigator.onLine) break;
+      }
     }
     await recarregarDoServidor();
-  } finally { syncing = false; await atualizarSyncStatus(); }
+  } finally {
+    syncing = false;
+    await atualizarSyncStatus();
+  }
 }
 
 async function garantirOrcamento(uid, chave) {
   const [ano, mes] = chave.split("-").map(Number);
-  let { data: orc } = await supabase.from("orcamentos").select("id").eq("user_id", uid).eq("mes", mes).eq("ano", ano).maybeSingle();
+  let { data: orc } = await supabase
+    .from("orcamentos")
+    .select("id")
+    .eq("user_id", uid)
+    .eq("mes", mes)
+    .eq("ano", ano)
+    .maybeSingle();
   if (!orc) {
-    const { data: novo, error } = await supabase.from("orcamentos").insert({ user_id: uid, mes, ano, salario: 0 }).select().single();
+    const { data: novo, error } = await supabase
+      .from("orcamentos")
+      .insert({ user_id: uid, mes, ano, salario: 0 })
+      .select()
+      .single();
     if (error) throw error;
     orc = novo;
   }
@@ -229,7 +301,8 @@ async function garantirOrcamento(uid, chave) {
 // ===== AUTH E PERFIL (Sessão Persistente) =====
 // ============================================================
 async function criarConta() {
-  if (!navigator.onLine) return mostrarMsg("Para criar uma conta, precisa de internet.");
+  if (!navigator.onLine)
+    return mostrarMsg("Para criar uma conta, precisa de internet.");
   const btn = document.getElementById("btn-criar");
   const txtOriginal = btn.innerHTML;
   btn.innerHTML = `<i class="bi bi-arrow-repeat" style="animation: spin 1s linear infinite; display:inline-block;"></i> A criar...`;
@@ -241,14 +314,21 @@ async function criarConta() {
 
   if (!email || !senha || senha.length < 6) {
     mostrarMsg("Escreve email e senha com 6+ caracteres");
-    btn.innerHTML = txtOriginal; btn.disabled = false; return;
+    btn.innerHTML = txtOriginal;
+    btn.disabled = false;
+    return;
   }
 
   try {
-    const { data, error } = await supabase.auth.signUp({ email, password: senha });
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password: senha,
+    });
     if (error) throw error;
     if (data.user) {
-      await supabase.from("perfis").insert({ id: data.user.id, nome: nome || email, telefone: "" });
+      await supabase
+        .from("perfis")
+        .insert({ id: data.user.id, nome: nome || email, telefone: "" });
     }
     mostrarMsg("Conta criada! Clica em Entrar.");
     document.getElementById("msg-login").style.color = "var(--verde)";
@@ -256,12 +336,16 @@ async function criarConta() {
     mostrarMsg("Erro: " + e.message);
     document.getElementById("msg-login").style.color = "var(--vermelho)";
   } finally {
-    btn.innerHTML = txtOriginal; btn.disabled = false;
+    btn.innerHTML = txtOriginal;
+    btn.disabled = false;
   }
 }
 
 async function entrar() {
-  if (!navigator.onLine) return mostrarMsg("Sem internet! Use o botão laranja abaixo para entrar offline.");
+  if (!navigator.onLine)
+    return mostrarMsg(
+      "Sem internet! Use o botão laranja abaixo para entrar offline.",
+    );
   const btn = document.getElementById("btn-entrar");
   const txtOriginal = btn.innerHTML;
   btn.innerHTML = `<i class="bi bi-arrow-repeat" style="animation: spin 1s linear infinite; display:inline-block;"></i> A entrar...`;
@@ -271,11 +355,14 @@ async function entrar() {
   const senha = document.getElementById("senha").value;
 
   try {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password: senha });
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password: senha,
+    });
     if (error) throw error;
     userId = data.user.id;
     localStorage.setItem(LS_USER_ID, userId);
-    
+
     await carregarPerfil();
     await recarregarDoServidor();
     localStorage.setItem(LS_USER_NAME, userName);
@@ -286,7 +373,8 @@ async function entrar() {
     mostrarMsg("Email ou senha errada.");
     document.getElementById("msg-login").style.color = "var(--vermelho)";
   } finally {
-    btn.innerHTML = txtOriginal; btn.disabled = false;
+    btn.innerHTML = txtOriginal;
+    btn.disabled = false;
   }
 }
 
@@ -300,30 +388,41 @@ function entrarOffline() {
     lerLocal();
     abrirApp({ id: userId });
     setTimeout(() => {
-      alert("Você está no modo offline. Os gastos serão sincronizados quando a internet voltar.");
+      alert(
+        "Você está no modo offline. Os gastos serão sincronizados quando a internet voltar.",
+      );
     }, 500);
   } else {
-    mostrarMsg("Nenhuma conta encontrada. Conecte-se e faça login pela primeira vez.");
+    mostrarMsg(
+      "Nenhuma conta encontrada. Conecte-se e faça login pela primeira vez.",
+    );
     document.getElementById("msg-login").style.color = "var(--laranja)";
   }
 }
 
 async function carregarPerfil() {
   try {
-    const { data } = await supabase.from("perfis").select("nome").eq("id", userId).single();
+    const { data } = await supabase
+      .from("perfis")
+      .select("nome")
+      .eq("id", userId)
+      .single();
     if (data && data.nome) userName = data.nome;
   } catch (e) {}
 }
 
 async function sair() {
-  try { if (supabase) await supabase.auth.signOut(); } catch (_) {}
+  try {
+    if (supabase) await supabase.auth.signOut();
+  } catch (_) {}
   location.reload();
 }
 
 function abrirApp(user) {
   document.getElementById("tela-login").style.display = "none";
   document.getElementById("app-principal").style.display = "block";
-  document.getElementById("nome-logado").innerText = `BEM-VINDO!, ${userName.split(" ")[0]}`;
+  document.getElementById("nome-logado").innerText =
+    `BEM-VINDO!, ${userName.split(" ")[0]}`;
   atualizar();
   renderMetas();
   verificarLembrete();
@@ -334,29 +433,66 @@ function mostrarMsg(txt) {
 }
 
 // ============================================================
-// ===== DADOS E INTERFACE =====
+// ===== DADOS E INTERFACE (CORREÇÃO DA SINCRONIZAÇÃO) =====
 // ============================================================
 async function recarregarDoServidor() {
   if (!SUPABASE_OK || !userId) return;
   try {
-    const { data: orcs } = await supabase.from("orcamentos").select("id, mes, ano, salario").eq("user_id", userId);
-    if (!orcs) return;
+    // 1. Buscar todos os orçamentos (meses) do utilizador
+    const { data: orcs } = await supabase
+      .from("orcamentos")
+      .select("id, mes, ano, salario")
+      .eq("user_id", userId);
+    if (!orcs || orcs.length === 0) return;
+
     for (const orc of orcs) {
       const chave = `${orc.ano}-${String(orc.mes).padStart(2, "0")}`;
-      if (!dados[chave]) dados[chave] = { salario: orc.salario || 0, gastos: [], agregado: "1 pessoa" };
-      else if (!dados[chave].salario) dados[chave].salario = orc.salario;
 
-      const { data: gastosDb } = await supabase.from("gastos").select("id, nome, valor").eq("orcamento_id", orc.id).order("created_at", { ascending: true });
-      if (gastosDb) {
-        dados[chave].gastos = gastosDb.map((g) => ({ id: g.id, nome: g.nome, valor: Number(g.valor), cat: "Outros" }));
+      // Cria o mês se não existir no celular
+      if (!dados[chave]) {
+        dados[chave] = {
+          salario: orc.salario || 0,
+          gastos: [],
+          agregado: "1 pessoa",
+        };
+      } else {
+        // Se o mês já existe (offline), atualiza o salário se estiver vazio
+        if (!dados[chave].salario || dados[chave].salario === 0) {
+          dados[chave].salario = orc.salario;
+        }
+      }
+
+      // 2. Buscar os gastos associados a este mês
+      const { data: gastosDb } = await supabase
+        .from("gastos")
+        .select("id, nome, valor")
+        .eq("orcamento_id", orc.id)
+        .order("created_at", { ascending: true });
+
+      if (gastosDb && gastosDb.length > 0) {
+        // Filtra os gastos que estão pendentes localmente para não duplicar
+        const pendentesLocais = dados[chave].gastos.filter((g) => g._pendente);
+
+        // Junta os gastos do banco de dados com os que estão pendentes no telemóvel
+        const gastosFormatados = gastosDb.map((g) => ({
+          id: g.id,
+          nome: g.nome,
+          valor: Number(g.valor),
+          // CORREÇÃO: Mantém a categoria original se houver, senão define como Outros
+          cat: g.categoria_id === 1 ? "Igreja" : "Outros",
+        }));
+
+        dados[chave].gastos = [...gastosFormatados, ...pendentesLocais];
       }
     }
     guardarLocal();
     atualizar();
-  } catch (e) {}
+  } catch (e) {
+    console.error("Erro ao sincronizar com o servidor:", e);
+  }
 }
 
-// ===== PERSISTÊNCIA DE SESSÃO (O segredo para não deslogar) =====
+// ===== PERSISTÊNCIA DE SESSÃO (Inicialização) =====
 (async () => {
   lerLocal();
   if (SUPABASE_OK) {
@@ -366,7 +502,7 @@ async function recarregarDoServidor() {
         userId = data.session.user.id;
         localStorage.setItem(LS_USER_ID, userId);
         await carregarPerfil();
-        await recarregarDoServidor();
+        await recarregarDoServidor(); // Puxa os dados
         localStorage.setItem(LS_USER_NAME, userName);
         abrirApp(data.session.user);
         setTimeout(processarFila, 800);
@@ -374,7 +510,7 @@ async function recarregarDoServidor() {
       }
     } catch (_) {}
   }
-  
+
   // Se não houver sessão no Supabase, tenta entrar offline automaticamente
   const idSalvo = localStorage.getItem(LS_USER_ID);
   if (idSalvo) {
@@ -387,9 +523,13 @@ async function recarregarDoServidor() {
 })();
 
 function mostrar(id, btn) {
-  document.querySelectorAll(".tela").forEach((t) => t.classList.remove("ativa"));
+  document
+    .querySelectorAll(".tela")
+    .forEach((t) => t.classList.remove("ativa"));
   document.getElementById(id).classList.add("ativa");
-  document.querySelectorAll(".menu button").forEach((b) => b.classList.remove("ativo"));
+  document
+    .querySelectorAll(".menu button")
+    .forEach((b) => b.classList.remove("ativo"));
   if (btn) btn.classList.add("ativo");
   if (id === "tela-grafico") renderGrafico();
   if (id === "tela-metas") renderMetas();
@@ -399,14 +539,17 @@ function mostrar(id, btn) {
 
 function escolherCat(cat, el) {
   categoriaAtual = cat;
-  document.querySelectorAll(".chip").forEach((c) => c.classList.remove("ativo"));
+  document
+    .querySelectorAll(".chip")
+    .forEach((c) => c.classList.remove("ativo"));
   el.classList.add("ativo");
 }
 
 function mudarMes(delta) {
   mesAtual = new Date(mesAtual.getFullYear(), mesAtual.getMonth() + delta, 1);
   atualizar();
-  if (document.getElementById("tela-grafico")?.classList.contains("ativa")) renderGrafico();
+  if (document.getElementById("tela-grafico")?.classList.contains("ativa"))
+    renderGrafico();
 }
 
 async function adicionarGasto() {
@@ -415,14 +558,22 @@ async function adicionarGasto() {
   if (!nome || !valor) return alert("Escreve o nome e o valor");
 
   const chave = chaveMes(mesAtual);
-  dadosDoMes().gastos.push({ nome, valor, cat: categoriaAtual, _pendente: true });
+
+  // Cria o gasto no celular e marca como pendente
+  dadosDoMes().gastos.push({
+    nome,
+    valor,
+    cat: categoriaAtual,
+    _pendente: true,
+  });
   guardarLocal();
-  
-  if (userId) await enfileirarGasto({ nome, valor, cat: categoriaAtual }, chave);
-  
+
+  if (userId)
+    await enfileirarGasto({ nome, valor, cat: categoriaAtual }, chave);
+
   document.getElementById("nome").value = "";
   document.getElementById("valor").value = "";
-  
+
   atualizar();
   renderMetas();
   mostrar("tela-inicio", document.querySelector(".menu button"));
@@ -434,7 +585,9 @@ async function remover(i) {
   const d = dadosDoMes();
   const gasto = d.gastos[i];
   if (userId && gasto.id && navigator.onLine) {
-    try { await supabase.from("gastos").delete().eq("id", gasto.id); } catch (_) {}
+    try {
+      await supabase.from("gastos").delete().eq("id", gasto.id);
+    } catch (_) {}
   }
   d.gastos.splice(i, 1);
   guardarLocal();
@@ -470,10 +623,10 @@ function salvarMeta() {
 
   metas.push({ nome, valorTotal: valor, id: Date.now() });
   guardarLocal();
-  
+
   document.getElementById("meta-nome").value = "";
   document.getElementById("meta-valor").value = "";
-  
+
   renderMetas();
 }
 
@@ -481,20 +634,22 @@ function renderMetas() {
   const container = document.getElementById("lista-metas");
   if (!container) return;
 
-  const poupancaTotal = dadosDoMes().gastos
-    .filter((g) => g.cat === "Poupança")
+  const poupancaTotal = dadosDoMes()
+    .gastos.filter((g) => g.cat === "Poupança")
     .reduce((s, g) => s + Number(g.valor), 0);
 
   if (metas.length === 0) {
-    container.innerHTML = "<p class='dica' style='color: var(--cinza-2); text-align: center;'>Ainda não tens metas. Cria uma acima!</p>";
+    container.innerHTML =
+      "<p class='dica' style='color: var(--cinza-2); text-align: center;'>Ainda não tens metas. Cria uma acima!</p>";
     return;
   }
 
-  container.innerHTML = metas.map((m, i) => {
-    const valorGuardado = Math.min(m.valorTotal, poupancaTotal);
-    const progresso = Math.min(100, (valorGuardado / m.valorTotal) * 100);
-    
-    return `
+  container.innerHTML = metas
+    .map((m, i) => {
+      const valorGuardado = Math.min(m.valorTotal, poupancaTotal);
+      const progresso = Math.min(100, (valorGuardado / m.valorTotal) * 100);
+
+      return `
       <div class="item" style="border-left-color: var(--verde); flex-direction: column; align-items: stretch; padding: 16px;">
         <div style="display: flex; justify-content: space-between; margin-bottom: 12px; align-items: center;">
           <b style="font-size: 16px; color: var(--branco);"><i class="bi bi-bullseye" style="color: var(--verde);"></i> ${m.nome}</b>
@@ -506,7 +661,8 @@ function renderMetas() {
         </div>
       </div>
     `;
-  }).join("");
+    })
+    .join("");
 }
 
 function removerMeta(i) {
@@ -523,25 +679,35 @@ function atualizar() {
   const d = dadosDoMes();
   const salario = Number(d.salario) || 0;
   const total = d.gastos.reduce((s, g) => s + Number(g.valor), 0);
-  const poupanca = d.gastos.filter((g) => g.cat === "Poupança").reduce((s, g) => s + Number(g.valor), 0);
+  const poupanca = d.gastos
+    .filter((g) => g.cat === "Poupança")
+    .reduce((s, g) => s + Number(g.valor), 0);
   const saldo = salario - total;
 
   document.getElementById("mes-label").innerText = nomeMes(mesAtual);
   const k = chaveMes(mesAtual);
   const hoje = chaveMes(new Date());
-  document.getElementById("mes-status").innerText = k === hoje ? "Mês atual" : k < hoje ? "Mês passado" : "Mês futuro";
+  document.getElementById("mes-status").innerText =
+    k === hoje ? "Mês atual" : k < hoje ? "Mês passado" : "Mês futuro";
 
   document.getElementById("salario").value = salario;
   document.getElementById("agregado").value = d.agregado || "1 pessoa";
 
-  document.getElementById("totalGasto").innerText = total.toLocaleString("pt-PT") + " Kz";
-  document.getElementById("saldo").innerText = saldo.toLocaleString("pt-PT") + " Kz";
-  document.getElementById("poupanca").innerText = poupanca.toLocaleString("pt-PT") + " Kz";
+  document.getElementById("totalGasto").innerText =
+    total.toLocaleString("pt-PT") + " Kz";
+  document.getElementById("saldo").innerText =
+    saldo.toLocaleString("pt-PT") + " Kz";
+  document.getElementById("poupanca").innerText =
+    poupanca.toLocaleString("pt-PT") + " Kz";
 
   const barra = document.getElementById("barra");
   if (barra) {
-    barra.style.width = Math.min(100, salario > 0 ? (total / salario) * 100 : 0) + "%";
-    barra.style.background = saldo < 0 ? "linear-gradient(90deg,#EF4444,#F87171)" : "linear-gradient(90deg,#D4AF37,#F4D03F)";
+    barra.style.width =
+      Math.min(100, salario > 0 ? (total / salario) * 100 : 0) + "%";
+    barra.style.background =
+      saldo < 0
+        ? "linear-gradient(90deg,#EF4444,#F87171)"
+        : "linear-gradient(90deg,#D4AF37,#F4D03F)";
   }
 
   const alerta = document.getElementById("alerta");
@@ -554,11 +720,17 @@ function atualizar() {
   }
 
   const lista = document.getElementById("lista-gastos");
-  lista.innerHTML = d.gastos.slice().reverse().map((g, idx) => {
-      const realIdx = d.gastos.length - 1 - idx;
-      const icone = iconesCat[g.cat] || "bi-box-seam";
-      const pend = g._pendente ? `<i class="bi bi-cloud-arrow-up" style="color:#F59E0B;font-size:12px;"></i> ` : "";
-      return `
+  lista.innerHTML =
+    d.gastos
+      .slice()
+      .reverse()
+      .map((g, idx) => {
+        const realIdx = d.gastos.length - 1 - idx;
+        const icone = iconesCat[g.cat] || "bi-box-seam";
+        const pend = g._pendente
+          ? `<i class="bi bi-cloud-arrow-up" style="color:#F59E0B;font-size:12px;"></i> `
+          : "";
+        return `
       <div class="item ${g._pendente ? "pendente" : ""}">
         <div>
           <b><i class="bi ${icone}"></i> ${g.nome}</b> ${pend}<br>
@@ -569,7 +741,9 @@ function atualizar() {
           <button class="btn-del" onclick="remover(${realIdx})"><i class="bi bi-trash"></i></button>
         </div>
       </div>`;
-    }).join("") || "<p style='color: var(--cinza-2); text-align: center;'>Nenhum gasto registado neste mês.</p>";
+      })
+      .join("") ||
+    "<p style='color: var(--cinza-2); text-align: center;'>Nenhum gasto registado neste mês.</p>";
 }
 
 function renderGrafico() {
@@ -584,12 +758,16 @@ function renderGrafico() {
     });
   }
 
-  document.getElementById("global-poupanca").innerText = totalPoupancaGlobal.toLocaleString("pt-PT") + " Kz";
-  document.getElementById("global-gastos").innerText = totalGastosGlobal.toLocaleString("pt-PT") + " Kz";
+  document.getElementById("global-poupanca").innerText =
+    totalPoupancaGlobal.toLocaleString("pt-PT") + " Kz";
+  document.getElementById("global-gastos").innerText =
+    totalGastosGlobal.toLocaleString("pt-PT") + " Kz";
 
   const total = d.gastos.reduce((s, g) => s + Number(g.valor), 0) || 1;
   const porCat = {};
-  d.gastos.forEach((g) => (porCat[g.cat] = (porCat[g.cat] || 0) + Number(g.valor)));
+  d.gastos.forEach(
+    (g) => (porCat[g.cat] = (porCat[g.cat] || 0) + Number(g.valor)),
+  );
 
   let html = "";
   let resumo = "";
@@ -605,18 +783,24 @@ function renderGrafico() {
     resumo += `${cat}: ${porCat[cat].toLocaleString("pt-PT")} Kz (${perc}%)\n`;
   }
 
-  document.getElementById("grafico").innerHTML = html || "<p style='color: var(--cinza-2); text-align: center;'>Sem dados para este mês.</p>";
-  document.getElementById("resumo-cat").innerHTML = resumo ? `<pre>${resumo}</pre>` : "";
+  document.getElementById("grafico").innerHTML =
+    html ||
+    "<p style='color: var(--cinza-2); text-align: center;'>Sem dados para este mês.</p>";
+  document.getElementById("resumo-cat").innerHTML = resumo
+    ? `<pre>${resumo}</pre>`
+    : "";
 }
 
 // ============================================================
 // ===== GESTÃO DE CONTA E DEFINIÇÕES =====
 // ============================================================
 async function alterarSenha() {
-  if (!navigator.onLine) return alert("Precisa de internet para alterar a senha.");
+  if (!navigator.onLine)
+    return alert("Precisa de internet para alterar a senha.");
   const novaSenha = prompt("Digite a nova senha (mínimo 6 caracteres):");
   if (!novaSenha) return;
-  if (novaSenha.length < 6) return alert("A senha deve ter no mínimo 6 caracteres.");
+  if (novaSenha.length < 6)
+    return alert("A senha deve ter no mínimo 6 caracteres.");
 
   try {
     const { error } = await supabase.auth.updateUser({ password: novaSenha });
@@ -630,16 +814,17 @@ async function alterarSenha() {
 async function alterarNome() {
   const novoNome = prompt("Digite o seu novo nome de exibição:");
   if (!novoNome) return;
-  
+
   userName = novoNome;
   localStorage.setItem(LS_USER_NAME, userName);
-  document.getElementById("nome-logado").innerText = `BEM-VINDO!, ${userName.split(" ")[0]}`;
-  
+  document.getElementById("nome-logado").innerText =
+    `BEM-VINDO!, ${userName.split(" ")[0]}`;
+
   if (SUPABASE_OK && userId && navigator.onLine) {
     try {
       await supabase.from("perfis").update({ nome: novoNome }).eq("id", userId);
       alert("Nome alterado com sucesso no servidor!");
-    } catch(e) {
+    } catch (e) {
       alert("Nome alterado localmente. Será sincronizado quando houver rede.");
     }
   }
@@ -647,10 +832,13 @@ async function alterarNome() {
 
 async function eliminarConta() {
   if (!confirm("TENS A CERTEZA? Todos os teus dados serão APAGADOS.")) return;
-  if (!confirm("Esta ação é irreversível. Deseja mesmo eliminar a conta?")) return;
+  if (!confirm("Esta ação é irreversível. Deseja mesmo eliminar a conta?"))
+    return;
 
   try {
-    alert("Por motivos de segurança, solicite ao administrador. Os teus dados locais serão apagados.");
+    alert(
+      "Por motivos de segurança, solicite ao administrador. Os teus dados locais serão apagados.",
+    );
     localStorage.clear();
     await sair();
   } catch (e) {
@@ -663,7 +851,8 @@ async function eliminarConta() {
 // ============================================================
 async function exportarPDF() {
   try {
-    const { jsPDF } = await import("https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.es.min.js");
+    const { jsPDF } =
+      await import("https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.es.min.js");
     const d = dadosDoMes();
     const salario = Number(d.salario) || 0;
     const total = d.gastos.reduce((s, g) => s + Number(g.valor), 0);
@@ -695,9 +884,14 @@ async function exportarPDF() {
     y += 12;
 
     d.gastos.forEach((g) => {
-      if (y > 280) { doc.addPage(); y = 20; }
+      if (y > 280) {
+        doc.addPage();
+        y = 20;
+      }
       doc.text(`- ${g.nome} [${g.cat}]`, 15, y);
-      doc.text(`${Number(g.valor).toLocaleString("pt-PT")} Kz`, 195, y, { align: "right" });
+      doc.text(`${Number(g.valor).toLocaleString("pt-PT")} Kz`, 195, y, {
+        align: "right",
+      });
       y += 6;
     });
 
@@ -717,7 +911,10 @@ function verificarLembrete() {
     const hojeStr = new Date().toDateString();
     if (lastDismissed !== hojeStr) {
       document.getElementById("banner-lembrete").style.display = "flex";
-      dispararNotificacao("Lembrete Kumbu", "Não te esqueças de registar os teus gastos e ver as tuas metas!");
+      dispararNotificacao(
+        "Lembrete Kumbu",
+        "Não te esqueças de registar os teus gastos e ver as tuas metas!",
+      );
     }
   }
 }
@@ -748,7 +945,7 @@ window.removerMeta = removerMeta;
 window.pedirPermissaoNotificacao = pedirPermissaoNotificacao;
 
 document.getElementById("salario")?.addEventListener("change", salvarSalario);
-document.getElementById("bloco-notas")?.addEventListener("input", guardarLocal); // Guarda notas automaticamente
+document.getElementById("bloco-notas")?.addEventListener("input", guardarLocal);
 
 window.addEventListener("online", () => {
   atualizarSyncStatus();
